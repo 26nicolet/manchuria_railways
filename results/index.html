@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1940 Manchuria Railway Timetable - Station View</title>
+    <style>
+        body { font-family: "Noto Serif", serif; margin: 2rem; background-color: #f4f1ea; color: #333; }
+        h1 { text-align: center; border-bottom: 2px solid #8b0000; padding-bottom: 10px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .search-box { margin-bottom: 20px; text-align: center; }
+        input[type="text"] { padding: 10px; font-size: 1.2rem; width: 60%; }
+        table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #8b0000; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .time-col { font-weight: bold; color: #0056b3; }
+        .station-header { font-size: 2em; margin-top: 20px; color: #8b0000; }
+        .loading { text-align: center; font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>1940 Manchuria Railway Timetable<br>満洲國鐵道時刻表 (昭和15年)</h1>
+        
+        <div class="search-box">
+            <input type="text" id="station-search" placeholder="Enter Station Name (e.g. 哈爾濱, 大連)...">
+        </div>
+
+        <div id="results">
+            <p class="loading">Loading database...</p>
+        </div>
+    </div>
+
+    <script>
+        let stationDb = {};
+
+        async function loadData() {
+            try {
+                const response = await fetch('results/station_database.json'); // Adjust path if needed
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                stationDb = await response.json();
+                document.getElementById('results').innerHTML = '<p>Database loaded. Start typing to search.</p>';
+            } catch (e) {
+                console.error("Failed to load data: ", e);
+                document.getElementById('results').innerHTML = '<p style="color:red">Failed to load database. Ensure you are running this on a local server (python -m http.server).</p>';
+            }
+        }
+
+        function renderStation(stationName) {
+            const trains = stationDb[stationName];
+            if (!trains) return;
+
+            // Sort trains by time if possible (simple string sort for now)
+            trains.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+
+            let html = `<h2 class="station-header">${stationName} Station (驛)</h2>`;
+            html += `<table>
+                        <thead>
+                            <tr>
+                                <th>Time (時刻)</th>
+                                <th>Train No. (列車)</th>
+                                <th>Type (種別)</th>
+                                <th>Source (出典)</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            trains.forEach(t => {
+                html += `<tr>
+                            <td class="time-col">${t.time || "N/A"}</td>
+                            <td>${t.train_no || "?"}</td>
+                            <td>${t.type || "-"}</td>
+                            <td style="font-size: 0.8em; color: gray;">${t.source_file}</td>
+                        </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            document.getElementById('results').innerHTML = html;
+        }
+
+        const searchInput = document.getElementById('station-search');
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query && stationDb[query]) {
+                renderStation(query);
+            } else if (query.length > 0) {
+                // simple substring search
+                const matches = Object.keys(stationDb).filter(k => k.includes(query));
+                if (matches.length > 0) {
+                     let listHtml = "<h3>Did you mean:</h3><ul>";
+                     matches.slice(0, 10).forEach(m => {
+                         listHtml += `<li><a href="#" onclick="document.getElementById('station-search').value = '${m}'; renderStation('${m}'); return false;">${m}</a></li>`;
+                     });
+                     listHtml += "</ul>";
+                     document.getElementById('results').innerHTML = listHtml;
+                } else {
+                    document.getElementById('results').innerHTML = "<p>No station found.</p>";
+                }
+            }
+        });
+
+        // Load data on start
+        loadData();
+    </script>
+</body>
+</html>
