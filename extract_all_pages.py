@@ -8,8 +8,7 @@ import google.generativeai as genai
 # ==========================================
 # CONFIGURATION
 # ==========================================
-# Use Gemini 1.5 Pro for its superior spatial reasoning and vision
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyCsnKHu5pk31dlOIvvLm3DumAXGFaFEL0A"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "api_key_here"))
 model = genai.GenerativeModel('gemini-2.5-pro')
 
 PDF_PATH = "1940_schedules.pdf"
