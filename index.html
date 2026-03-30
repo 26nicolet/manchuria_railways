@@ -237,8 +237,8 @@ async function init() {
 
   // Load data
   const [routeData, stationData] = await Promise.all([
-    fetch('trains.json').then(r => r.json()),
-    fetch('stations_web.json').then(r => r.json()),
+    fetch('results/trains.json').then(r => r.json()),
+    fetch('results/stations_web.json').then(r => r.json()),
   ]);
 
   routes = routeData;
