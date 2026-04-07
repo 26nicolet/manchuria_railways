@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Select Railway Routes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; }
+  #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+  #toolbar {
+    position: absolute; top: 12px; left: 12px; z-index: 10;
+    background: #fff; border-radius: 8px; padding: 10px 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25); display: flex; gap: 8px; align-items: center;
+  }
+  #toolbar button {
+    padding: 6px 14px; border: 1px solid #ccc; border-radius: 5px;
+    background: #f8f8f8; cursor: pointer; font-size: 13px;
+  }
+  #toolbar button:hover { background: #e8e8e8; }
+  #toolbar button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+  #status {
+    position: absolute; bottom: 12px; left: 12px; z-index: 10;
+    background: rgba(255,255,255,.92); border-radius: 6px; padding: 8px 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.15); font-size: 13px; max-width: 500px;
+  }
+  #status .count { font-weight: 600; }
+
+  #loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 20; background: #fff; padding: 24px 36px; border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3); font-size: 16px; text-align: center;
+  }
+
+  .crosshair .maplibregl-canvas { cursor: crosshair !important; }
+</style>
+</head>
+<body>
+<div id="loading">Loading railways&hellip;</div>
+<div id="map"></div>
+<div id="toolbar">
+  <button id="btn-rect" title="Draw rectangle selection">&#9634; Rectangle</button>
+  <button id="btn-lasso" title="Draw freeform lasso">&#9998; Lasso</button>
+  <button id="btn-click" title="Click individual features">&#9758; Click</button>
+  <button id="btn-clear" title="Clear selection">&#10005; Clear</button>
+  <span style="border-left:1px solid #ccc;height:20px"></span>
+  <button id="btn-export" title="Export selected features as GeoJSON">&#8681; Export GeoJSON</button>
+</div>
+<div id="status">
+  <span id="info">Loading&hellip;</span>
+</div>
+
+<script>
+const GEOJSON_URL = 'openstreetmap/manchuria_railways.geojson';
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      'osm-raster': {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors'
+      }
+    },
+    layers: [{
+      id: 'osm-raster',
+      type: 'raster',
+      source: 'osm-raster'
+    }]
+  },
+  center: [126, 44],
+  zoom: 5
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+let allData = null;          // full FeatureCollection
+let selectedIds = new Set();  // indices of selected features
+let mode = 'none';           // 'none' | 'rect' | 'lasso' | 'click'
+
+// ── Drawing state ──
+let drawing = false;
+let drawStart = null;
+let lassoPoints = [];
+let rectDiv = null;
+let lassoCanvas = null;
+let lassoCtx = null;
+
+// ── Load data ──
+fetch(GEOJSON_URL)
+  .then(r => r.json())
+  .then(data => {
+    // Add an index to each feature for selection tracking
+    data.features.forEach((f, i) => { f.id = i; });
+    allData = data;
+    document.getElementById('loading').style.display = 'none';
+    updateInfo();
+    addLayers();
+  });
+
+function addLayers() {
+  map.addSource('railways', { type: 'geojson', data: allData, promoteId: 'id' });
+
+  // All railways (dimmed)
+  map.addLayer({
+    id: 'railways-all',
+    type: 'line',
+    source: 'railways',
+    paint: {
+      'line-color': '#888',
+      'line-width': 1.5,
+      'line-opacity': 0.5
+    }
+  });
+
+  // Selected railways (bright)
+  map.addLayer({
+    id: 'railways-selected',
+    type: 'line',
+    source: 'railways',
+    paint: {
+      'line-color': '#e63946',
+      'line-width': 3,
+      'line-opacity': 1
+    },
+    filter: ['in', ['id'], ['literal', []]]
+  });
+
+  // Hover highlight
+  map.addLayer({
+    id: 'railways-hover',
+    type: 'line',
+    source: 'railways',
+    paint: {
+      'line-color': '#facc15',
+      'line-width': 4,
+      'line-opacity': 0.8
+    },
+    filter: ['==', ['id'], -1]
+  });
+}
+
+function updateSelectionFilter() {
+  if (!map.getLayer('railways-selected')) return;
+  const ids = [...selectedIds];
+  if (ids.length === 0) {
+    map.setFilter('railways-selected', ['in', ['id'], ['literal', []]]);
+  } else {
+    // MapLibre filter: match feature id
+    map.setFilter('railways-selected', ['in', ['id'], ['literal', ids]]);
+  }
+}
+
+function updateInfo() {
+  const total = allData ? allData.features.length : 0;
+  const sel = selectedIds.size;
+  document.getElementById('info').innerHTML =
+    `<span class="count">${total.toLocaleString()}</span> features loaded` +
+    (sel > 0 ? ` &mdash; <span class="count" style="color:#e63946">${sel.toLocaleString()}</span> selected` : '') +
+    (mode !== 'none' ? ` &mdash; Mode: <b>${mode}</b>` : '');
+}
+
+// ── Mode buttons ──
+function setMode(m) {
+  mode = (mode === m) ? 'none' : m;
+  document.querySelectorAll('#toolbar button').forEach(b => b.classList.remove('active'));
+  if (mode !== 'none') {
+    document.getElementById('btn-' + mode).classList.add('active');
+    map.getCanvas().parentElement.classList.add('crosshair');
+  } else {
+    map.getCanvas().parentElement.classList.remove('crosshair');
+  }
+  // Disable map drag during rect/lasso
+  if (mode === 'rect' || mode === 'lasso') {
+    map.dragPan.disable();
+  } else {
+    map.dragPan.enable();
+  }
+  updateInfo();
+}
+
+document.getElementById('btn-rect').onclick = () => setMode('rect');
+document.getElementById('btn-lasso').onclick = () => setMode('lasso');
+document.getElementById('btn-click').onclick = () => setMode('click');
+document.getElementById('btn-clear').onclick = () => {
+  selectedIds.clear();
+  updateSelectionFilter();
+  updateInfo();
+};
+
+// ── Export ──
+document.getElementById('btn-export').onclick = () => {
+  if (selectedIds.size === 0) { alert('No features selected.'); return; }
+  const out = {
+    type: 'FeatureCollection',
+    features: allData.features.filter(f => selectedIds.has(f.id))
+      .map(f => { const c = JSON.parse(JSON.stringify(f)); delete c.id; return c; })
+  };
+  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'selected_railways.geojson';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// ── Click mode ──
+map.on('click', 'railways-all', (e) => {
+  if (mode !== 'click' || !e.features.length) return;
+  const id = e.features[0].id;
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+  } else {
+    selectedIds.add(id);
+  }
+  updateSelectionFilter();
+  updateInfo();
+});
+
+// Hover effect
+let hoveredId = null;
+map.on('mousemove', 'railways-all', (e) => {
+  if (!e.features.length) return;
+  const id = e.features[0].id;
+  if (hoveredId !== id) {
+    hoveredId = id;
+    map.setFilter('railways-hover', ['==', ['id'], id]);
+    map.getCanvas().style.cursor = (mode === 'click') ? 'pointer' : '';
+  }
+});
+map.on('mouseleave', 'railways-all', () => {
+  hoveredId = null;
+  map.setFilter('railways-hover', ['==', ['id'], -1]);
+  map.getCanvas().style.cursor = '';
+});
+
+// ── Rectangle selection ──
+function createRectDiv() {
+  if (rectDiv) rectDiv.remove();
+  rectDiv = document.createElement('div');
+  rectDiv.style.cssText = 'position:absolute;border:2px dashed #3b82f6;background:rgba(59,130,246,.12);pointer-events:none;z-index:5;';
+  map.getContainer().appendChild(rectDiv);
+}
+
+map.getCanvas().addEventListener('mousedown', (e) => {
+  if (mode === 'rect') {
+    drawing = true;
+    drawStart = { x: e.offsetX, y: e.offsetY };
+    createRectDiv();
+  } else if (mode === 'lasso') {
+    drawing = true;
+    lassoPoints = [{ x: e.offsetX, y: e.offsetY }];
+    createLassoCanvas();
+  }
+});
+
+map.getCanvas().addEventListener('mousemove', (e) => {
+  if (!drawing) return;
+  if (mode === 'rect' && rectDiv) {
+    const x = Math.min(drawStart.x, e.offsetX);
+    const y = Math.min(drawStart.y, e.offsetY);
+    const w = Math.abs(e.offsetX - drawStart.x);
+    const h = Math.abs(e.offsetY - drawStart.y);
+    rectDiv.style.left = x + 'px';
+    rectDiv.style.top = y + 'px';
+    rectDiv.style.width = w + 'px';
+    rectDiv.style.height = h + 'px';
+  } else if (mode === 'lasso' && lassoCtx) {
+    lassoPoints.push({ x: e.offsetX, y: e.offsetY });
+    drawLasso();
+  }
+});
+
+map.getCanvas().addEventListener('mouseup', (e) => {
+  if (!drawing) return;
+  drawing = false;
+
+  if (mode === 'rect') {
+    const end = { x: e.offsetX, y: e.offsetY };
+    if (rectDiv) rectDiv.remove();
+    rectDiv = null;
+    selectFeaturesInRect(drawStart, end);
+  } else if (mode === 'lasso') {
+    if (lassoCanvas) lassoCanvas.remove();
+    lassoCanvas = null;
+    selectFeaturesInLasso(lassoPoints);
+    lassoPoints = [];
+  }
+});
+
+// ── Lasso drawing ──
+function createLassoCanvas() {
+  if (lassoCanvas) lassoCanvas.remove();
+  const container = map.getContainer();
+  lassoCanvas = document.createElement('canvas');
+  lassoCanvas.width = container.offsetWidth;
+  lassoCanvas.height = container.offsetHeight;
+  lassoCanvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;';
+  container.appendChild(lassoCanvas);
+  lassoCtx = lassoCanvas.getContext('2d');
+}
+
+function drawLasso() {
+  if (!lassoCtx || lassoPoints.length < 2) return;
+  lassoCtx.clearRect(0, 0, lassoCanvas.width, lassoCanvas.height);
+  lassoCtx.beginPath();
+  lassoCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+  for (let i = 1; i < lassoPoints.length; i++) {
+    lassoCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+  }
+  lassoCtx.closePath();
+  lassoCtx.fillStyle = 'rgba(59,130,246,.12)';
+  lassoCtx.fill();
+  lassoCtx.strokeStyle = '#3b82f6';
+  lassoCtx.lineWidth = 2;
+  lassoCtx.setLineDash([6, 4]);
+  lassoCtx.stroke();
+}
+
+// ── Selection logic ──
+function selectFeaturesInRect(p1, p2) {
+  const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+  const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+  if (maxX - minX < 5 && maxY - minY < 5) return; // too small
+
+  const sw = map.unproject([minX, maxY]);
+  const ne = map.unproject([maxX, minY]);
+
+  allData.features.forEach(f => {
+    if (featureIntersectsBBox(f, sw.lng, sw.lat, ne.lng, ne.lat)) {
+      selectedIds.add(f.id);
+    }
+  });
+  updateSelectionFilter();
+  updateInfo();
+}
+
+function selectFeaturesInLasso(points) {
+  if (points.length < 3) return;
+  // Convert screen points to lng/lat polygon
+  const lngLatPoly = points.map(p => {
+    const ll = map.unproject([p.x, p.y]);
+    return [ll.lng, ll.lat];
+  });
+
+  allData.features.forEach(f => {
+    if (featureIntersectsPolygon(f, lngLatPoly)) {
+      selectedIds.add(f.id);
+    }
+  });
+  updateSelectionFilter();
+  updateInfo();
+}
+
+function featureIntersectsBBox(feature, minLon, minLat, maxLon, maxLat) {
+  const coords = flattenCoords(feature.geometry);
+  for (const c of coords) {
+    if (c[0] >= minLon && c[0] <= maxLon && c[1] >= minLat && c[1] <= maxLat) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function featureIntersectsPolygon(feature, polygon) {
+  const coords = flattenCoords(feature.geometry);
+  for (const c of coords) {
+    if (pointInPolygon(c, polygon)) return true;
+  }
+  return false;
+}
+
+function flattenCoords(geometry) {
+  const type = geometry.type;
+  const coords = geometry.coordinates;
+  if (type === 'Point') return [coords];
+  if (type === 'LineString') return coords;
+  if (type === 'MultiLineString' || type === 'Polygon') return coords.flat();
+  if (type === 'MultiPolygon') return coords.flat(2);
+  return [];
+}
+
+function pointInPolygon(point, polygon) {
+  // Ray-casting algorithm
+  const x = point[0], y = point[1];
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1];
+    const xj = polygon[j][0], yj = polygon[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+</script>
+</body>
+</html>

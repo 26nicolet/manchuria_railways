@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>滿洲騎車表 — 1940 Manchuria Railway Tracker</title>
@@ -9,10 +9,8 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color:#e0d8c8; overflow:hidden; }
 
-/* --- MAP --- */
 #map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
 
-/* --- TOP BAR --- */
 #topbar {
   position:absolute; top:0; left:0; right:0; z-index:1000;
   background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
@@ -21,48 +19,35 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   display:flex; align-items:center; justify-content:space-between;
   box-shadow: 0 2px 20px rgba(0,0,0,0.5);
 }
-#topbar h1 {
-  font-size: 1.3rem; color:#e94560; letter-spacing:2px;
-}
+#topbar h1 { font-size: 1.3rem; color:#e94560; letter-spacing:2px; }
 #topbar h1 span { color:#e0d8c8; font-weight:300; font-size:0.8rem; margin-left:10px; }
 
-/* --- TIME CONTROLS --- */
-#time-controls {
-  display:flex; align-items:center; gap:12px;
-}
+#time-controls { display:flex; align-items:center; gap:12px; }
 #time-display {
   font-size:2rem; font-weight:bold; color:#e94560;
-  font-family: 'Courier New', monospace;
-  min-width: 100px; text-align:center;
+  font-family: 'Courier New', monospace; min-width:100px; text-align:center;
 }
-#time-slider {
-  width: 300px; accent-color:#e94560; cursor:pointer;
-}
+#time-slider { width:300px; accent-color:#e94560; cursor:pointer; }
 .ctrl-btn {
-  background: #e94560; color:white; border:none; padding:6px 14px;
-  border-radius: 4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
+  background:#e94560; color:white; border:none; padding:6px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
 }
 .ctrl-btn:hover { background:#c73650; }
 .ctrl-btn.active { background:#53d769; }
 #speed-display { font-size:0.8rem; color:#aaa; min-width:50px; }
 
-/* --- STATS BAR --- */
 #statsbar {
   position:absolute; top:52px; left:0; right:0; z-index:999;
-  background: rgba(22,33,62,0.9);
-  padding: 6px 20px;
+  background:rgba(22,33,62,0.9); padding:6px 20px;
   display:flex; gap:30px; font-size:0.85rem; color:#aaa;
-  border-bottom: 1px solid #333;
+  border-bottom:1px solid #333;
 }
 .stat-val { color:#e94560; font-weight:bold; margin-left:4px; }
 
-
-
-/* --- STATION PANEL --- */
 #station-panel {
   position:absolute; top:90px; right:12px; z-index:999;
   background:rgba(22,33,62,0.95); border-radius:8px; padding:14px;
-  border:1px solid #e94560; width:340px; max-height: calc(100vh - 110px);
+  border:1px solid #e94560; width:340px; max-height:calc(100vh - 110px);
   overflow-y:auto; display:none;
 }
 #station-panel h2 { color:#e94560; font-size:1.2rem; margin-bottom:4px; }
@@ -73,15 +58,13 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 }
 #station-timetable { width:100%; border-collapse:collapse; margin-top:8px; }
 #station-timetable th {
-  background:#e94560; color:white; padding:5px 8px; font-size:0.75rem;
-  text-align:left;
+  background:#e94560; color:white; padding:5px 8px; font-size:0.75rem; text-align:left;
 }
 #station-timetable td {
   padding:4px 8px; border-bottom:1px solid #333; font-size:0.8rem; color:#ccc;
 }
 #station-timetable tr:hover td { background:rgba(233,69,96,0.15); }
 
-/* --- TRAIN PANEL --- */
 #train-panel {
   position:absolute; bottom:20px; right:12px; z-index:999;
   background:rgba(22,33,62,0.95); border-radius:8px; padding:14px;
@@ -99,10 +82,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 .train-stop .ts-type { color:#888; font-size:0.7rem; margin-left:6px; }
 .train-stop.active { background:rgba(83,215,105,0.2); border-radius:3px; }
 
-/* --- SEARCH --- */
-#search-box {
-  position:relative;
-}
+#search-box { position:relative; }
 #search-input {
   padding:5px 10px; border-radius:4px; border:1px solid #555;
   background:#0f3460; color:#e0d8c8; font-size:0.85rem; width:200px;
@@ -113,12 +93,10 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   max-height:200px; overflow-y:auto; display:none; z-index:1001;
 }
 .search-item {
-  padding:6px 10px; cursor:pointer; font-size:0.8rem; color:#ccc;
-  border-bottom:1px solid #222;
+  padding:6px 10px; cursor:pointer; font-size:0.8rem; color:#ccc; border-bottom:1px solid #222;
 }
 .search-item:hover { background:#e94560; color:white; }
 
-/* --- LEGEND --- */
 #legend {
   position:absolute; bottom:20px; left:12px; z-index:999;
   background:rgba(22,33,62,0.95); border-radius:8px; padding:10px 14px;
@@ -127,225 +105,161 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 #legend h3 { color:#e94560; margin-bottom:6px; font-size:0.8rem; }
 .legend-row { display:flex; align-items:center; gap:6px; margin:3px 0; color:#ccc; }
 .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-
-
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
 <div id="topbar">
   <h1>滿洲汽車表<span> 1940 Railway Tracker</span></h1>
   <div id="time-controls">
-    <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">▶ Play</button>
-    <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">30x</span></button>
+    <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">&#9654; Play</button>
+    <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">1x</span></button>
     <input type="range" id="time-slider" min="0" max="1439" value="360" oninput="setTime(+this.value)">
     <div id="time-display">06:00</div>
   </div>
   <div id="search-box">
-    <input type="text" id="search-input" placeholder="Search station (駅名)..." oninput="onSearch(this.value)">
+    <input type="text" id="search-input" placeholder="Search station..." oninput="onSearch(this.value)">
     <div id="search-results"></div>
   </div>
 </div>
 
-<!-- STATS BAR -->
 <div id="statsbar">
   <span>Active Trains: <span class="stat-val" id="stat-active">0</span></span>
-  <!-- <span>Total Routes: <span class="stat-val" id="stat-routes">0</span></span>
-  <span>Stations: <span class="stat-val" id="stat-stations">0</span></span> -->
 </div>
 
-<!-- STATION PANEL -->
 <div id="station-panel">
-  <button class="close-btn" onclick="closeStationPanel()">✕</button>
+  <button class="close-btn" onclick="closeStationPanel()">&#10005;</button>
   <h2 id="sp-name"></h2>
   <div class="sub" id="sp-sub"></div>
   <table id="station-timetable">
-    <thead><tr><th>Time</th><th>Train</th><th>Type</th><th>Next</th></tr></thead>
+    <thead><tr><th>Time</th><th>Train</th><th>Next</th></tr></thead>
     <tbody id="sp-tbody"></tbody>
   </table>
 </div>
 
-<!-- TRAIN PANEL -->
 <div id="train-panel">
-  <button class="close-btn" onclick="closeTrainPanel()">✕</button>
+  <button class="close-btn" onclick="closeTrainPanel()">&#10005;</button>
   <h2 id="tp-title"></h2>
   <div id="tp-stops"></div>
 </div>
 
-<!-- LEGEND -->
 <div id="legend">
   <h3>Legend</h3>
-  <div class="legend-row"><span class="legend-dot" style="background:#e94560"></span> Manchuria</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#FFD700"></span> Korea</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#53d769"></span> Japan</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#00bcd4"></span> Taiwan</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#ff9800"></span> China</div>
-  <div style="border-top:1px solid #333;margin:4px 0"></div>
-  <div class="legend-row">🚂 Active train</div>
+  <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
   <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:8px;height:8px"></span> Major station (10+ trains)</div>
   <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
+  <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
 </div>
 
-<!-- MAP -->
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ===================== CONFIG =====================
-const MAP_CENTER = [43.5, 126.5];  // Manchuria center
-const MAP_ZOOM = 5;
-
-const REGION_COLORS = {
-  manchuria: '#e94560',
-  korea: '#FFD700',
-  japan: '#53d769',
-  taiwan: '#00bcd4',
-  china: '#ff9800',
-  other: '#aaa',
-};
+const MAP_CENTER = [43.5, 126.5];
+const MAP_ZOOM = 6;
 
 // ===================== STATE =====================
 let routes = [];
 let stations = [];
-let currentMinutes = 360; // 6:00 AM
+let currentMinutes = 360;
 let playing = false;
-let speed = 30; // minutes per animation frame
-let animFrameId = null;
-let lastFrameTime = 0;
+let speed = 30;
+let tickInterval = null;
 
-// Leaflet objects
 let map;
-let stationMarkers = {};  // name -> L.circleMarker
-let trainMarkers = {};     // route.id -> L.marker
+let stationMarkers = {};
+let trainMarkers = {};
+
+// Pre-computed: cumulative distances along each geometry segment
+// routeGeomDists[routeIdx][segIdx] = [cumDist0, cumDist1, ...]
+let routeGeomDists = [];
 
 // ===================== INIT =====================
 async function init() {
-  // Create map
-  map = L.map('map', {
-    center: MAP_CENTER,
-    zoom: MAP_ZOOM,
-    zoomControl: true,
-  });
+  map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
 
-  // Minimal basemap (no roads/labels to avoid clutter)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-    maxZoom: 19,
-    subdomains: 'abcd',
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CARTO &copy; OSM',
+    maxZoom: 19, subdomains: 'abcd',
   }).addTo(map);
 
-  // Load data
-  const [routeData, stationData] = await Promise.all([
-    fetch('results/trains.json').then(r => r.json()),
-    fetch('results/stations_web.json').then(r => r.json()),
+  const [routeData, stationData, railwayData] = await Promise.all([
+    fetch('results/route_data.json').then(r => r.json()),
+    fetch('results/all_stations.json').then(r => r.json()),
+    fetch('results/railway_network.json').then(r => r.json()),
   ]);
 
   routes = routeData;
   stations = stationData;
 
-  const elRoutes = document.getElementById('stat-routes');
-  const elStations = document.getElementById('stat-stations');
-  if (elRoutes) elRoutes.textContent = routes.length;
-  if (elStations) elStations.textContent = stations.length;
+  // Draw railway network background
+  L.geoJSON(railwayData, {
+    style: { color: '#e94560', weight: 2.5, opacity: 0.7 },
+    interactive: false,
+  }).addTo(map);
 
-  // Draw permanent route lines (subway-style)
-  drawRouteLines();
+  // Pre-compute cumulative distances for geometry interpolation
+  precomputeGeomDists();
 
-  // Draw stations on top of route lines
   drawStations();
-
-  // Initial render
   updateTrains();
+
+  // Redraw trains on zoom so dot sizes update
+  map.on('zoomend', () => updateTrains());
 }
 
-let routeLineLayer;
-function drawRouteLines() {
-  // Build unique route polylines from train segments
-  const uniqueLines = new Map(); // stationSeqKey -> {coords, region, count}
-
-  routes.forEach(route => {
-    const stops = route.stops;
-    // Extract unique consecutive coords
-    const coords = [];
-    const stationSeq = [];
-    let lastCoordKey = '', lastStation = '';
-    stops.forEach(s => {
-      const ck = s.lat + ',' + s.lon;
-      if (ck !== lastCoordKey) {
-        coords.push([s.lon, s.lat]); // GeoJSON order: [lon, lat]
-        lastCoordKey = ck;
+function precomputeGeomDists() {
+  routeGeomDists = routes.map(route => {
+    const geom = route.geometry || [];
+    return geom.map(seg => {
+      const dists = [0];
+      for (let i = 1; i < seg.length; i++) {
+        const dlat = seg[i][0] - seg[i-1][0];
+        const dlon = seg[i][1] - seg[i-1][1];
+        dists.push(dists[i-1] + Math.sqrt(dlat*dlat + dlon*dlon));
       }
-      if (s.station !== lastStation) {
-        stationSeq.push(s.station);
-        lastStation = s.station;
-      }
+      return dists;
     });
-    if (coords.length < 2) return;
-
-    const key = stationSeq.join('→');
-    if (!uniqueLines.has(key)) {
-      uniqueLines.set(key, { coords, region: route.region, count: 1 });
-    } else {
-      uniqueLines.get(key).count++;
-    }
   });
+}
 
-  console.log('Drawing ' + uniqueLines.size + ' unique route lines');
-  routeLineLayer = L.layerGroup().addTo(map);
+// Interpolate position along a geometry segment at given fraction (0..1)
+function interpGeom(seg, dists, frac) {
+  if (!seg || seg.length < 2 || !dists || dists.length < 2) {
+    return seg ? seg[0] : null;
+  }
+  const totalDist = dists[dists.length - 1];
+  if (totalDist === 0) return seg[0];
 
-  uniqueLines.forEach((line) => {
-    const w = Math.min(1 * (line.count + 1) * 0.5, 3.5);
-    let leafletCoords;
+  const targetDist = frac * totalDist;
 
-    // Smooth with Turf bezierSpline for 3+ point lines
-    if (line.coords.length >= 3) {
-      try {
-        const turfLine = turf.lineString(line.coords);
-        const smoothed = turf.bezierSpline(turfLine, { resolution: 10000, sharpness: 0.85 });
-        // Convert back to Leaflet [lat, lon]
-        leafletCoords = smoothed.geometry.coordinates.map(c => [c[1], c[0]]);
-      } catch (e) {
-        // Fallback to straight line
-        leafletCoords = line.coords.map(c => [c[1], c[0]]);
-      }
-    } else {
-      leafletCoords = line.coords.map(c => [c[1], c[0]]);
-    }
+  // Binary search for the right segment
+  let lo = 0, hi = dists.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (dists[mid] <= targetDist) lo = mid; else hi = mid;
+  }
 
-    // Dark outline
-    L.polyline(leafletCoords, {
-      color: '#222',
-      weight: w + 1.5,
-      opacity: 0.4,
-      lineCap: 'round',
-      lineJoin: 'round',
-      interactive: false,
-    }).addTo(routeLineLayer);
+  const segFrac = (dists[hi] - dists[lo]) > 0
+    ? (targetDist - dists[lo]) / (dists[hi] - dists[lo])
+    : 0;
 
-    // Colored line
-    L.polyline(leafletCoords, {
-      color: REGION_COLORS[line.region] || '#e94560',
-      weight: w,
-      opacity: 0.85,
-      lineCap: 'round',
-      lineJoin: 'round',
-      interactive: false,
-    }).addTo(routeLineLayer);
-  });
+  return [
+    seg[lo][0] + (seg[hi][0] - seg[lo][0]) * segFrac,
+    seg[lo][1] + (seg[hi][1] - seg[lo][1]) * segFrac,
+  ];
 }
 
 function drawStations() {
-  // Clear existing
   Object.values(stationMarkers).forEach(m => map.removeLayer(m));
   stationMarkers = {};
 
   stations.forEach(s => {
-    if (s.train_count < 1) return; // Skip stations with no trains
-
+    if (s.train_count < 1) return;
     const isMajor = s.train_count >= 10;
     const marker = L.circleMarker([s.lat, s.lon], {
-      radius: isMajor ? 7 : 4,
+      radius: isMajor ? 4.5 : 3,
       fillColor: isMajor ? '#FFD700' : '#4a90d9',
       fillOpacity: isMajor ? 1.0 : 0.8,
       stroke: true,
@@ -354,17 +268,15 @@ function drawStations() {
     }).addTo(map);
 
     marker.on('click', () => openStationPanel(s.name));
-    marker.bindTooltip(s.name, { className: 'station-tooltip', direction: 'top', offset: [0, -5] });
-
+    marker.bindTooltip(s.name, { direction: 'top', offset: [0, -5] });
     stationMarkers[s.name] = marker;
   });
 }
 
 // ===================== TIME CONTROL =====================
 function formatTime(minutes) {
-  const total = Math.floor(minutes);
-  const h = Math.floor(total / 60) % 24;
-  const m = total % 60;
+  const h = Math.floor(minutes / 60) % 24;
+  const m = Math.floor(minutes) % 60;
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
@@ -378,53 +290,46 @@ function setTime(mins) {
 function togglePlay() {
   playing = !playing;
   const btn = document.getElementById('btn-play');
-  btn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  btn.innerHTML = playing ? '&#9208; Pause' : '&#9654; Play';
   btn.classList.toggle('active', playing);
-  if (playing) {
-    startTicker();
-  } else {
-    stopTicker();
-  }
+  playing ? startTicker() : stopTicker();
 }
 
-let tickInterval = null;
 function startTicker() {
   stopTicker();
-  const ms = 1000 / speed; // interval in ms per minute tick
-  tickInterval = setInterval(() => {
-    setTime(currentMinutes + 1);
-  }, ms);
+  tickInterval = setInterval(() => setTime(currentMinutes + 1), 1000 / speed);
 }
 function stopTicker() {
   if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
 }
 
 function changeSpeed() {
-  const speeds = [30, 60];
-  const speed_displays = ['1x', '2x'];
+  const speeds = [30, 60, 120];
+  const labels = ['1x', '2x', '4x'];
   const idx = speeds.indexOf(speed);
-  speed = speeds[(idx + 1) % speeds.length];
-  document.getElementById('speed-display').textContent = speed_displays[(idx + 1) % speeds.length];
-  if (playing) startTicker(); // restart with new speed
+  const next = (idx + 1) % speeds.length;
+  speed = speeds[next];
+  document.getElementById('speed-display').textContent = labels[next];
+  if (playing) startTicker();
 }
 
 // ===================== TRAIN RENDERING =====================
 function updateTrains() {
-  // Remove old markers
   Object.values(trainMarkers).forEach(m => map.removeLayer(m));
   trainMarkers = {};
 
   let activeCount = 0;
   const t = currentMinutes;
+  const zoom = map.getZoom();
+  // Scale dot size with zoom: small at overview, bigger when zoomed in
+  const dotRadius = Math.max(3, Math.min(7, zoom - 3));
 
-  routes.forEach(route => {
+  routes.forEach((route, ri) => {
     const stops = route.stops;
     if (stops.length < 2) return;
-
-    // Is this route active at the current time?
     if (t < stops[0].time_min || t > stops[stops.length - 1].time_min) return;
 
-    // Find which segment the train is on
+    // Find active segment
     let segIdx = -1;
     for (let i = 0; i < stops.length - 1; i++) {
       if (t >= stops[i].time_min && t <= stops[i + 1].time_min) {
@@ -434,148 +339,111 @@ function updateTrains() {
     }
     if (segIdx === -1) return;
 
-    const fromStop = stops[segIdx];
-    const toStop = stops[segIdx + 1];
-    const segDuration = toStop.time_min - fromStop.time_min;
+    const from = stops[segIdx];
+    const to = stops[segIdx + 1];
+    const dur = to.time_min - from.time_min;
+    const progress = dur > 0 ? (t - from.time_min) / dur : 0;
 
-    let lat, lon, atStation;
+    // Interpolate along geometry if available
+    let lat, lon;
+    const geom = route.geometry;
+    const geomDists = routeGeomDists[ri];
 
-    if (segDuration === 0) {
-      lat = fromStop.lat;
-      lon = fromStop.lon;
-      atStation = true;
+    if (geom && geomDists && geom[segIdx] && geom[segIdx].length >= 2) {
+      const pos = interpGeom(geom[segIdx], geomDists[segIdx], progress);
+      lat = pos[0]; lon = pos[1];
     } else {
-      const progress = (t - fromStop.time_min) / segDuration;
-      lat = fromStop.lat + (toStop.lat - fromStop.lat) * progress;
-      lon = fromStop.lon + (toStop.lon - fromStop.lon) * progress;
-      atStation = (progress < 0.05 || progress > 0.95);
+      lat = from.lat + (to.lat - from.lat) * progress;
+      lon = from.lon + (to.lon - from.lon) * progress;
     }
 
-    const trainIcon = L.icon({
-      iconUrl: 'train.png',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-    });
-
-    const marker = L.marker([lat, lon], { icon: trainIcon }).addTo(map);
-
+    const marker = L.circleMarker([lat, lon], {
+      radius: dotRadius,
+      fillColor: '#fff',
+      fillOpacity: 0.95,
+      stroke: true,
+      color: '#e94560',
+      weight: 1.5,
+    }).addTo(map);
     marker.bindTooltip(
-      `🚂 ${route.train_no}<br>${fromStop.station} → ${toStop.station}`,
-      { className: 'train-tooltip', direction: 'top', offset: [0, -14] }
+      `Train ${route.train_no}<br>${from.station} → ${to.station}`,
+      { direction: 'top', offset: [0, -8] }
     );
-
     marker.on('click', () => openTrainPanel(route));
-
     trainMarkers[route.id] = marker;
-
     activeCount++;
   });
 
   document.getElementById('stat-active').textContent = activeCount;
 }
 
-// ===================== STATION PANEL =====================
-function openStationPanel(stationName) {
+// ===================== PANELS =====================
+function openStationPanel(name) {
   const panel = document.getElementById('station-panel');
-  const st = stations.find(s => s.name === stationName);
+  const st = stations.find(s => s.name === name);
 
-  document.getElementById('sp-name').textContent = stationName + ' 驛';
+  document.getElementById('sp-name').textContent = name + ' 驛';
   document.getElementById('sp-sub').textContent =
-    `${st ? st.region : '—'} · ${st ? st.train_count : '?'} trains`;
+    `${st ? st.region : ''} · ${st ? st.train_count : '?'} trains`;
 
-  // Collect all stops at this station
   const stopsHere = [];
   routes.forEach(r => {
     r.stops.forEach((s, i) => {
-      if (s.station === stationName) {
+      if (s.station === name) {
         const next = i < r.stops.length - 1 ? r.stops[i + 1].station : '—';
         stopsHere.push({
-          time: s.time,
           time_min: s.time_min,
+          time: formatTime(s.time_min),
           train: r.train_no,
-          type: s.type,
-          next: next,
-          region: r.region,
+          next,
         });
       }
     });
   });
-
   stopsHere.sort((a, b) => a.time_min - b.time_min);
 
   const tbody = document.getElementById('sp-tbody');
   tbody.innerHTML = '';
   stopsHere.forEach(s => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:#e94560;font-weight:bold">${s.time}</td>
-      <td>${s.train}</td>
-      <td>${s.type}</td>
-      <td style="color:#aaa">${s.next}</td>
-    `;
+    tr.innerHTML = `<td style="color:#e94560;font-weight:bold">${s.time}</td><td>${s.train}</td><td style="color:#aaa">${s.next}</td>`;
     tbody.appendChild(tr);
   });
 
   panel.style.display = 'block';
-
-  // Pan map to station
   if (st) map.panTo([st.lat, st.lon]);
 }
+function closeStationPanel() { document.getElementById('station-panel').style.display = 'none'; }
 
-function closeStationPanel() {
-  document.getElementById('station-panel').style.display = 'none';
-}
-
-// ===================== TRAIN PANEL =====================
 function openTrainPanel(route) {
   const panel = document.getElementById('train-panel');
-  document.getElementById('tp-title').textContent =
-    `🚂 Train ${route.train_no} · ${route.region}`;
+  document.getElementById('tp-title').textContent = `Train ${route.train_no}`;
 
   const container = document.getElementById('tp-stops');
   container.innerHTML = '';
   route.stops.forEach(s => {
-    const isActive = (currentMinutes >= s.time_min - 2 && currentMinutes <= s.time_min + 2);
+    const isActive = Math.abs(currentMinutes - s.time_min) <= 2;
     const div = document.createElement('div');
     div.className = 'train-stop' + (isActive ? ' active' : '');
-    div.innerHTML = `
-      <span class="ts-time">${s.time}</span>
-      <span class="ts-station">${s.station}</span>
-      <span class="ts-type">${s.type}</span>
-    `;
-    div.addEventListener('click', () => {
-      map.panTo([s.lat, s.lon]);
-      openStationPanel(s.station);
-    });
+    div.innerHTML = `<span class="ts-time">${formatTime(s.time_min)}</span><span class="ts-station">${s.station}</span>`;
+    div.addEventListener('click', () => { map.panTo([s.lat, s.lon]); openStationPanel(s.station); });
     container.appendChild(div);
   });
-
   panel.style.display = 'block';
 }
-
-function closeTrainPanel() {
-  document.getElementById('train-panel').style.display = 'none';
-}
+function closeTrainPanel() { document.getElementById('train-panel').style.display = 'none'; }
 
 // ===================== SEARCH =====================
 function onSearch(query) {
   const box = document.getElementById('search-results');
-  if (!query || query.length < 1) {
-    box.style.display = 'none';
-    return;
-  }
-
+  if (!query) { box.style.display = 'none'; return; }
   const matches = stations.filter(s => s.name.includes(query)).slice(0, 15);
-  if (matches.length === 0) {
-    box.style.display = 'none';
-    return;
-  }
-
+  if (!matches.length) { box.style.display = 'none'; return; }
   box.innerHTML = '';
   matches.forEach(s => {
     const div = document.createElement('div');
     div.className = 'search-item';
-    div.textContent = `${s.name} (${s.region})`;
+    div.textContent = s.name;
     div.addEventListener('click', () => {
       document.getElementById('search-input').value = s.name;
       box.style.display = 'none';
@@ -586,15 +454,10 @@ function onSearch(query) {
   });
   box.style.display = 'block';
 }
-
-// Close search on click outside
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('#search-box')) {
-    document.getElementById('search-results').style.display = 'none';
-  }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-box')) document.getElementById('search-results').style.display = 'none';
 });
 
-// ===================== START =====================
 init();
 </script>
 </body>
