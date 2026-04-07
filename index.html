@@ -146,7 +146,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <div id="legend">
   <h3>Legend</h3>
   <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:8px;height:8px"></span> Major station (10+ trains)</div>
+  <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:6px;height:6px"></span> Major station (10+ trains)</div>
   <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
   <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
 </div>
@@ -179,7 +179,7 @@ let routeGeomDists = [];
 async function init() {
   map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; CARTO &copy; OSM',
     maxZoom: 19, subdomains: 'abcd',
   }).addTo(map);

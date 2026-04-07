@@ -71,9 +71,31 @@ def load_station_coords():
 
 # ─────────────────── Step 3: Build train routes ───────────────────
 
+MAX_SPEED_KMH = 150  # max realistic speed for 1940s trains
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat/2)**2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlon/2)**2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
 def build_train_routes(entries, station_coords):
-    by_train = defaultdict(list)
+    # Deduplicate entries (same train_no, station, time, type)
+    seen = set()
+    unique_entries = []
     for e in entries:
+        key = (e['train_no'], e['station'].strip(), e['time'], e['type'])
+        if key not in seen:
+            seen.add(key)
+            unique_entries.append(e)
+    print(f'  Deduplicated {len(entries)} -> {len(unique_entries)} entries')
+
+    by_train = defaultdict(list)
+    for e in unique_entries:
         by_train[e['train_no']].append(e)
 
     routes = []
@@ -104,7 +126,8 @@ def build_train_routes(entries, station_coords):
 
         processed.sort(key=lambda x: x['time_min'])
 
-        segments = []
+        # First pass: split on time gaps (as before)
+        time_segments = []
         current_seg = [processed[0]]
         for i in range(1, len(processed)):
             prev = processed[i - 1]
@@ -115,12 +138,33 @@ def build_train_routes(entries, station_coords):
             time_gap = curr['time_min'] - prev['time_min']
             if time_gap < -120 or time_gap > 720:
                 if len(current_seg) >= 2:
-                    segments.append(current_seg)
+                    time_segments.append(current_seg)
                 current_seg = [curr]
             else:
                 current_seg.append(curr)
         if len(current_seg) >= 2:
-            segments.append(current_seg)
+            time_segments.append(current_seg)
+
+        # Second pass: split on geographic jumps (speed check)
+        segments = []
+        for tseg in time_segments:
+            current_seg = [tseg[0]]
+            for i in range(1, len(tseg)):
+                prev = current_seg[-1]
+                curr = tseg[i]
+                dt_min = curr['time_min'] - prev['time_min']
+                if dt_min > 0 and curr['station'] != prev['station']:
+                    dist_km = _haversine_km(prev['lat'], prev['lon'],
+                                            curr['lat'], curr['lon'])
+                    speed = dist_km / (dt_min / 60)
+                    if speed > MAX_SPEED_KMH:
+                        if len(current_seg) >= 2:
+                            segments.append(current_seg)
+                        current_seg = [curr]
+                        continue
+                current_seg.append(curr)
+            if len(current_seg) >= 2:
+                segments.append(current_seg)
 
         for seg in segments:
             deduped = [seg[0]]
