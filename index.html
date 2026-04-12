@@ -13,28 +13,29 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 
 #topbar {
   position:absolute; top:0; left:0; right:0; z-index:1000;
-  background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-  border-bottom: 2px solid #e94560;
+  background: #F5C518;
+  border-bottom: 2px solid #333;
   padding: 8px 20px;
   display:flex; align-items:center; justify-content:space-between;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
 }
-#topbar h1 { font-size: 1.3rem; color:#e94560; letter-spacing:2px; }
-#topbar h1 span { color:#e0d8c8; font-weight:300; font-size:0.8rem; margin-left:10px; }
+#topbar h1 { font-size: 1.3rem; color:#111; letter-spacing:2px; display:flex; align-items:center; gap:10px; }
+#topbar h1 span { color:#333; font-weight:300; font-size:0.8rem; margin-left:10px; }
+.manchukuo-flag { height:28px; width:auto; border:1px solid #ccc; }
 
 #time-controls { display:flex; align-items:center; gap:12px; }
 #time-display {
-  font-size:2rem; font-weight:bold; color:#e94560;
+  font-size:2rem; font-weight:bold; color:#111;
   font-family: 'Courier New', monospace; min-width:100px; text-align:center;
 }
 #time-slider { width:300px; accent-color:#e94560; cursor:pointer; }
 .ctrl-btn {
-  background:#e94560; color:white; border:none; padding:6px 14px;
+  background:#111; color:white; border:none; padding:6px 14px;
   border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
 }
-.ctrl-btn:hover { background:#c73650; }
-.ctrl-btn.active { background:#53d769; }
-#speed-display { font-size:0.8rem; color:#aaa; min-width:50px; }
+.ctrl-btn:hover { background:#333; }
+.ctrl-btn.active { background:#333; }
+#speed-display { font-size:0.8rem; color:white; min-width:50px; }
 
 #statsbar {
   position:absolute; top:52px; left:0; right:0; z-index:999;
@@ -84,8 +85,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 
 #search-box { position:relative; }
 #search-input {
-  padding:5px 10px; border-radius:4px; border:1px solid #555;
-  background:#0f3460; color:#e0d8c8; font-size:0.85rem; width:200px;
+  padding:5px 10px; border-radius:4px; border:1px solid #999;
+  background:#fff; color:#111; font-size:0.85rem; width:200px;
 }
 #search-results {
   position:absolute; top:100%; left:0; width:200px;
@@ -110,7 +111,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <body>
 
 <div id="topbar">
-  <h1>滿洲汽車表<span> 1940 Railway Tracker</span></h1>
+  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect width="200" height="100" fill="#CE1126"/><rect y="100" width="200" height="100" fill="#3A75C4"/><rect y="200" width="200" height="100" fill="#fff"/><rect y="300" width="200" height="100" fill="#111"/></svg>滿洲汽車表<span> 1940 Railway Tracker</span></h1>
   <div id="time-controls">
     <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">&#9654; Play</button>
     <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">1x</span></button>

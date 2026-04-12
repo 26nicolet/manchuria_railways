@@ -55,17 +55,34 @@ def load_timetable_data():
 
 # ─────────────────── Step 2: Load station coordinates ───────────────────
 
+# Important cities to include even if outside the Manchuria bbox
+FORCE_INCLUDE_STATIONS = {'北京', '天津', '京城'}
+
+# Extended corridor bboxes to load intermediate stations for rail connectivity
+CORRIDORS = [
+    # Beijing-Tianjin to Shanhaiguan corridor
+    {'minlat': 38.5, 'maxlat': 41.5, 'minlon': 115.5, 'maxlon': 120.5},
+    # Korean peninsula (Seoul area + NK corridor to Andong — no data south of Seoul)
+    {'minlat': 37.0, 'maxlat': 40.5, 'minlon': 124.0, 'maxlon': 130.0},
+]
+
 def load_station_coords():
     with open(os.path.join(RESULTS_DIR, 'stations_web.json')) as f:
         data = json.load(f)
     coords = {}
     for s in data:
         if s['lat'] and s['lon']:
-            if EA_BBOX['minlat'] < s['lat'] < EA_BBOX['maxlat'] and EA_BBOX['minlon'] < s['lon'] < EA_BBOX['maxlon']:
+            in_bbox = (EA_BBOX['minlat'] < s['lat'] < EA_BBOX['maxlat']
+                       and EA_BBOX['minlon'] < s['lon'] < EA_BBOX['maxlon'])
+            in_corridor = any(
+                c['minlat'] < s['lat'] < c['maxlat'] and c['minlon'] < s['lon'] < c['maxlon']
+                for c in CORRIDORS
+            )
+            if in_bbox or in_corridor or s['name'] in FORCE_INCLUDE_STATIONS:
                 coords[s['name']] = {
                     'lat': s['lat'], 'lon': s['lon'], 'region': s['region']
                 }
-    print(f'  Loaded {len(coords)} stations within Manchuria bbox')
+    print(f'  Loaded {len(coords)} stations within Manchuria bbox (+ corridors)')
     return coords
 
 
@@ -280,7 +297,74 @@ def snap_stations_to_graph(station_coords, G):
     G_pruned = G.subgraph(keep_nodes).copy()
     print(f'  Kept {kept_comps} components: {G_pruned.number_of_nodes()} nodes, {G_pruned.number_of_edges()} edges')
 
-    return station_node, G_pruned
+    # Bridge nearby disconnected components
+    G_bridged = bridge_components(G_pruned)
+
+    return station_node, G_bridged
+
+
+def bridge_components(G, max_bridge=0.05):
+    """Connect nearby disconnected components with bridge edges.
+    max_bridge is in degrees (~5km). Iterates until no more bridges possible."""
+    iteration = 0
+    total_bridges = 0
+    while True:
+        components = list(nx.connected_components(G))
+        if len(components) <= 1:
+            break
+
+        # Sample boundary nodes from each component (degree-1 nodes + sample)
+        comp_nodes = []  # list of (node, comp_id)
+        for ci, comp in enumerate(components):
+            nodes_list = list(comp)
+            # Use all nodes if small, otherwise sample endpoints
+            if len(nodes_list) <= 200:
+                for n in nodes_list:
+                    comp_nodes.append((n, ci))
+            else:
+                # Use degree-1 nodes (endpoints) + uniform sample
+                for n in nodes_list:
+                    if G.degree(n) <= 2:
+                        comp_nodes.append((n, ci))
+                for n in nodes_list[::50]:
+                    comp_nodes.append((n, ci))
+
+        # Build KDTree
+        pts = np.array([[n[0], n[1]] for n, _ in comp_nodes])
+        comp_ids = np.array([ci for _, ci in comp_nodes])
+        tree = cKDTree(pts)
+
+        bridges = 0
+        bridged_pairs = set()
+        for i, (node, ci) in enumerate(comp_nodes):
+            dists, idxs = tree.query(pts[i], k=10)
+            for d, j in zip(dists, idxs):
+                if j == i:
+                    continue
+                cj = comp_ids[j]
+                if ci == cj:
+                    continue
+                pair = (min(ci, cj), max(ci, cj))
+                if pair in bridged_pairs:
+                    continue
+                if d < max_bridge:
+                    other_node = comp_nodes[j][0]
+                    G.add_edge(node, other_node, weight=d)
+                    bridged_pairs.add(pair)
+                    bridges += 1
+
+        total_bridges += bridges
+        iteration += 1
+        if bridges == 0:
+            break
+
+    if total_bridges > 0:
+        new_comps = nx.number_connected_components(G)
+        print(f'  Bridged {total_bridges} component gaps ({iteration} iterations) -> {new_comps} components')
+    else:
+        print(f'  No nearby components to bridge ({len(components)} components remain)')
+
+    return G
 
 
 def route_on_graph(routes, G, station_node):
@@ -314,6 +398,7 @@ def route_on_graph(routes, G, station_node):
 
         stops = route['stops']
         geometry = []
+        geom_type = []  # 'rail' or 'straight' per segment
 
         for i in range(len(stops) - 1):
             fs, ts = stops[i], stops[i + 1]
@@ -328,6 +413,7 @@ def route_on_graph(routes, G, station_node):
                         [fs['lat'], fs['lon']],
                         [ts['lat'], ts['lon']]
                     ])
+                    geom_type.append('straight')
                     straight += 1
                     continue
 
@@ -352,6 +438,7 @@ def route_on_graph(routes, G, station_node):
 
                 if path_nodes and len(path_nodes) >= 2:
                     geometry.append([[n[1], n[0]] for n in path_nodes])
+                    geom_type.append('rail')
                     for j in range(len(path_nodes) - 1):
                         a, b = path_nodes[j], path_nodes[j + 1]
                         edge = (a, b) if a < b else (b, a)
@@ -363,9 +450,11 @@ def route_on_graph(routes, G, station_node):
                 [fs['lat'], fs['lon']],
                 [ts['lat'], ts['lon']]
             ])
+            geom_type.append('straight')
             straight += 1
 
         route['geometry'] = geometry
+        route['geom_type'] = geom_type
 
     print(f'  Routed on rail: {snapped}, Straight fallback: {straight} (unreachable: {unreachable})')
     print(f'  Unique rail edges used: {len(used_edges)}')
@@ -538,6 +627,7 @@ def main():
             'end_time': route['end_time'],
             'stops': compact_stops,
             'geometry': simplified_geom,
+            'geom_type': route.get('geom_type', []),
         })
 
     with open(os.path.join(RESULTS_DIR, 'route_data.json'), 'w') as f:
