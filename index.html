@@ -174,6 +174,72 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   text-align:center; font-size:0.7rem; color:#888; padding:2px 0;
   border-top:1px dashed #333; margin:4px 0;
 }
+
+/* ── Lodging & Activities Panel ── */
+#lodging-panel {
+  position:absolute; top:90px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.97); border-radius:10px; padding:18px;
+  border:1px solid #e94560; width:380px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#lodging-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+#lodging-panel h2 {
+  color:#e94560; font-size:1.2rem; margin-bottom:12px;
+}
+.lodging-section {
+  margin-bottom:16px;
+}
+.lodging-section-header {
+  border-radius:20px; padding:6px 16px; font-weight:bold; font-size:0.85rem;
+  text-align:center; margin-bottom:10px; letter-spacing:1px; text-transform:uppercase;
+}
+.lodging-section.lodging .lodging-section-header {
+  background:rgba(76,175,80,0.25); color:#81c784; border:1px solid #81c784;
+}
+.lodging-section.activities .lodging-section-header {
+  background:rgba(255,152,0,0.25); color:#ffb74d; border:1px solid #ffb74d;
+}
+.lodging-card {
+  border-radius:8px; padding:10px 12px; margin-bottom:8px;
+}
+.lodging-section.lodging .lodging-card {
+  background:rgba(76,175,80,0.08); border:1px solid rgba(76,175,80,0.4);
+}
+.lodging-section.activities .lodging-card {
+  background:rgba(255,152,0,0.08); border:1px solid rgba(255,152,0,0.4);
+}
+.lodging-card-name {
+  font-weight:bold; font-size:0.9rem; margin-bottom:2px;
+}
+.lodging-section.lodging .lodging-card-name { color:#a5d6a7; }
+.lodging-section.activities .lodging-card-name { color:#ffcc80; }
+.lodging-card-jp {
+  font-size:0.75rem; color:#888; margin-bottom:4px;
+}
+.lodging-card-detail {
+  font-size:0.78rem; color:#bbb; line-height:1.4;
+}
+.lodging-card-price {
+  display:inline-block; margin-top:4px; padding:2px 8px; border-radius:10px;
+  font-size:0.72rem; font-weight:bold;
+}
+.lodging-section.lodging .lodging-card-price {
+  background:rgba(76,175,80,0.2); color:#81c784;
+}
+.lodging-section.activities .lodging-card-price {
+  background:rgba(255,152,0,0.2); color:#ffb74d;
+}
+
+.lodging-map-icon {
+  background:rgba(22,33,62,0.9); border:2px solid #ffb74d; border-radius:50%;
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  font-size:14px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+}
+.lodging-map-icon:hover { transform:scale(1.2); }
 </style>
 </head>
 <body>
@@ -218,9 +284,10 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:6px;height:6px"></span> Major station (10+ trains)</div>
   <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
   <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
+  <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
 </div>
 
-<button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
+<button id="trip-btn" onclick="toggleTripPanel()">Plan Your Trip Today</button>
 
 <div id="trip-panel">
   <button class="close-btn" onclick="closeTripPanel()">&#10005;</button>
@@ -243,10 +310,114 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div id="trip-results"></div>
 </div>
 
+<div id="lodging-panel">
+  <button class="close-btn" onclick="closeLodgingPanel()">&#10005;</button>
+  <h2 id="lodging-city-name"></h2>
+  <div id="lodging-content"></div>
+</div>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ===================== STATION ENGLISH NAMES (1940s romanizations) =====================
+const STATION_ENGLISH = {
+  '一面坡':'Imienpo','三家店':'Sanchiaten','三岔河':'Sanchaho','三棵樹':'Sankeshu',
+  '三源浦':'Sanyuanpu','三盛玉':'Sanshengyu','下城子':'Hsiachengtzu','九站':'Chiuchan',
+  '九臺':'Chiutai','五龍背':'Wulungpei','京城':'Keijo','仁川':'Jinsen',
+  '佳木斯':'Chiamussu','免渡河':'Mientuho','八面城':'Pamiencheng','公主嶺':'Kungchuling',
+  '其塔木':'Chitamu','北京':'Peking','北安':'Peian','北戴河':'Peitaiho',
+  '千山':'Chienshan','南張村':'Nanchangtsun','南芬':'Nanfen','南關嶺':'Nankuanling',
+  '南雜木':'Nantsamu','博克圖':'Pokotu','口前':'Kouchien','吉林':'Kirin',
+  '周家':'Chouchia','周水子':'Choushuitzu','呼蘭':'Hulan','哈爾濱':'Harbin',
+  '唐山':'Tangshan','四平':'Szeping','四平街':'Szepingkai','圖們':'Tumen',
+  '城子街':'Chengtzuchieh','塘沽':'Tangku','大孤山':'Takushan','大房身':'Tafangshen',
+  '大石橋':'Tashihchiao','大石頭':'Tashihtou','大興':'Tahsing','大虎山':'Tahushan',
+  '大賚':'Talai','大連':'Dairen','天橋嶺':'Tienchiaoling','天津':'Tientsin',
+  '太平川':'Taipingchuan','奉天':'Mukden','威虎嶺':'Weihuling','孟家屯':'Mengchiatun',
+  '孤店子':'Kutientzu','安圖':'Antu','安廣':'Ankuang','安東':'Antung',
+  '安達':'Anta','富拉爾基':'Fularchi','寧安':'Ningan','小嶺':'Hsiaoling',
+  '山城鎭':'Shanchengchen','山海關':'Shanhaikuan','岔路河':'Chaluho','康平':'Kangping',
+  '廊坊':'Langfang','延吉':'Yenchi','彰武':'Changwu','得利寺':'Telissu',
+  '德惠':'Tehui','德縣':'Tehsien','扎蘭屯':'Chalantun','拉林':'Lalin',
+  '撫順':'Fushun','敦化':'Tunhua','新京':'Hsinking','新安州':'Sinanju',
+  '新民':'Hsinmin','新立屯':'Hsinlitun','新站':'Hsinchan','新臺子':'Hsintaitzu',
+  '旅順':'Port Arthur','昂昂溪':'Angangchi','昌圖':'Changtu','昌黎':'Changli',
+  '明月溝':'Mingyuehkou','普蘭店':'Pulantien','朝陽川':'Chaoyangchuan','本溪湖':'Penhsihu',
+  '東京城':'Tungchingcheng','東寧':'Tungning','東豐':'Tungfeng','松花江':'Sungari',
+  '林口':'Linkou','林甸':'Lintien','柳河':'Liuho','梅河口':'Meihokou',
+  '橫道河子':'Hengtaohotzu','水原':'Suigen','永登浦':'Yongdungpo','江橋':'Chiangchiao',
+  '沙崗':'Shakang','沙河口':'Shahokou','泰來':'Tailai','津':'Tsin',
+  '洮南':'Taonan','海倫':'Hailun','海城':'Haicheng','海拉爾':'Hailar',
+  '海林':'Hailin','海龍':'Hailung','渾河':'Hunho','湯山城':'Tangshancheng',
+  '湯崗子':'Tangkangtzu','溝幇子':'Koupangtzu','溝幫子':'Koupangtzu','灤縣':'Luanhsien',
+  '烏吉密':'Wuchimi','熊岳城':'Hsiungyuehcheng','營口':'Yingkou','牙克石':'Yakoshih',
+  '牡丹江':'Mutankiang','玉泉':'Yuchuan','王府':'Wangfu','琉璃河':'Liuliho',
+  '琿春':'Hunchun','瓦房店':'Wafangtien','田莊臺':'Tienchuangtai','盤山':'Panshan',
+  '石峴':'Sokhyon','石頭河子':'Shihtouhotzu','秦皇島':'Chinwangtao','穆稜':'Muling',
+  '索倫':'Solun','綏中':'Suichung','綏化':'Suihua','綏芬河':'Suifenho',
+  '綏陽':'Suiyang','羅津':'Rashin','老頭溝':'Laotoukou','臨江':'Linkiang',
+  '興城':'Hsingcheng','興安嶺':'Hsinganling','舒蘭':'Shulan','范家屯':'Fanchiatun',
+  '草河口':'Tsaohokou','莊河':'Chuangho','葦河':'Weiho','葫蘆島':'Hulutao',
+  '蔡家溝':'Tsaichiakou','蘆臺':'Lutai','蘇家屯':'Suchiatun','虎石臺':'Hushihtai',
+  '蛟河':'Chiaoho','西直門':'Hsichihmen','訓戎':'Hunyung','訥河':'Neho',
+  '軍糧城':'Chunliangcheng','通化':'Tunghua','通遠堡':'Tungyuanpu','通遼':'Tungliao',
+  '連山關':'Lienshankuan','遼源':'Liaoyuan','遼陽':'Liaoyang','郭家店':'Kuochiatien',
+  '鄭家屯':'Chengchiatun','金州':'Kinchow','錦州':'Chinchow','鎮東':'Chentung',
+  '鐵嶺':'Tiehling','長春':'Changchun','長辛店':'Changhsintien','開原':'Kaiyuan',
+  '開山屯':'Kaishantun','開通':'Kaitung','開魯':'Kailu','阿什河':'Ashiho',
+  '陶賴昭':'Taolaichao','雙城堡':'Shuangchengpu','靠山屯':'Kaoshantun','鞍山':'Anshan',
+  '額穆':'Emu','首山':'Shoushan','高碑店':'Kaopeitien','鴨園':'Yayuan',
+  '黃州':'Hwangju','黃泥河':'Huangniho','齊齊哈爾':'Tsitsihar',
+};
+// Reverse lookup: English (lowercase) -> Chinese
+const ENGLISH_TO_CHINESE = {};
+for (const [cn, en] of Object.entries(STATION_ENGLISH)) {
+  ENGLISH_TO_CHINESE[en.toLowerCase()] = cn;
+}
+// Modern / alternate English names -> Chinese
+const MODERN_NAMES = {
+  'beijing':'北京','tianjin':'天津','shenyang':'奉天','dalian':'大連',
+  'changchun':'長春','qiqihar':'齊齊哈爾','jilin':'吉林','dandong':'安東',
+  'anshan':'鞍山','fushun':'撫順','mudanjiang':'牡丹江','harbin':'哈爾濱',
+  'hailar':'海拉爾','seoul':'京城','incheon':'仁川','suwon':'水原',
+  'lushun':'旅順','yingkou':'營口','tangshan':'唐山','qinhuangdao':'秦皇島',
+  'shanhaiguan':'山海關','langfang':'廊坊','siping':'四平','tieling':'鐵嶺',
+  'liaoyang':'遼陽','jinzhou':'錦州','tumen':'圖們','yanji':'延吉',
+  'hunchun':'琿春','tonghua':'通化','dunhua':'敦化','suihua':'綏化',
+  'suifenhe':'綏芬河','tongliao':'通遼','taonan':'洮南','kaiyuan':'開原',
+  'huludao':'葫蘆島','wafangdian':'瓦房店','dashiqiao':'大石橋',
+  'haicheng':'海城','benxi':'本溪湖','meihekou':'梅河口',
+  'beidaihe':'北戴河','tanggu':'塘沽','liaoyuan':'遼源',
+  'jiamusi':'佳木斯','hegang':'鶴崗','shuangyashan':'雙鴨山',
+  'ningan':'寧安','zhalantun':'扎蘭屯','yakeshi':'牙克石',
+  'heihe':'黑河','shulan':'舒蘭','panshan':'盤山',
+  'pyongyang':'平壤','sinuiju':'新義州','kaesong':'開城',
+  'najin':'羅津','hwangju':'黃州',
+};
+for (const [modern, cn] of Object.entries(MODERN_NAMES)) {
+  if (!ENGLISH_TO_CHINESE[modern]) ENGLISH_TO_CHINESE[modern] = cn;
+}
+
+// Match station by query (Chinese, 1940s English, or modern English)
+function matchStation(station, query) {
+  const q = query.toLowerCase();
+  if (station.name.includes(query)) return true;
+  const en = STATION_ENGLISH[station.name];
+  if (en && en.toLowerCase().includes(q)) return true;
+  // Check modern names
+  for (const [modern, cn] of Object.entries(MODERN_NAMES)) {
+    if (cn === station.name && modern.includes(q)) return true;
+  }
+  return false;
+}
+
+// Display name: "Chinese (English)" for bilingual display
+function displayName(chineseName) {
+  const en = STATION_ENGLISH[chineseName];
+  return en ? chineseName + ' (' + en + ')' : chineseName;
+}
+
 // ===================== CONFIG =====================
 const MAP_CENTER = [43.5, 126.5];
 const MAP_ZOOM = 6;
@@ -298,6 +469,7 @@ async function init() {
   buildTripIndex();
 
   drawStations();
+  drawLodgingIcons();
   updateTrains();
 
   // Redraw trains on zoom so dot sizes update
@@ -363,7 +535,7 @@ function drawStations() {
     }).addTo(map);
 
     marker.on('click', () => openStationPanel(s.name));
-    marker.bindTooltip(s.name, { direction: 'top', offset: [0, -5] });
+    marker.bindTooltip(displayName(s.name), { direction: 'top', offset: [0, -5] });
     stationMarkers[s.name] = marker;
   });
 }
@@ -461,7 +633,7 @@ function updateTrains() {
       weight: 1.5,
     }).addTo(map);
     marker.bindTooltip(
-      `Train ${route.train_no}<br>${from.station} → ${to.station}`,
+      `Train ${route.train_no}<br>${displayName(from.station)} → ${displayName(to.station)}`,
       { direction: 'top', offset: [0, -8] }
     );
     marker.on('click', () => openTrainPanel(route));
@@ -477,7 +649,7 @@ function openStationPanel(name) {
   const panel = document.getElementById('station-panel');
   const st = stations.find(s => s.name === name);
 
-  document.getElementById('sp-name').textContent = name + ' 驛';
+  document.getElementById('sp-name').textContent = displayName(name) + ' 驛';
   document.getElementById('sp-sub').textContent =
     `${st ? st.region : ''} · ${st ? st.train_count : '?'} trains`;
 
@@ -490,7 +662,7 @@ function openStationPanel(name) {
           time_min: s.time_min,
           time: formatTime(s.time_min),
           train: r.train_no,
-          next,
+          next: displayName(next),
         });
       }
     });
@@ -520,7 +692,7 @@ function openTrainPanel(route) {
     const isActive = Math.abs(currentMinutes - s.time_min) <= 2;
     const div = document.createElement('div');
     div.className = 'train-stop' + (isActive ? ' active' : '');
-    div.innerHTML = `<span class="ts-time">${formatTime(s.time_min)}</span><span class="ts-station">${s.station}</span>`;
+    div.innerHTML = `<span class="ts-time">${formatTime(s.time_min)}</span><span class="ts-station">${displayName(s.station)}</span>`;
     div.addEventListener('click', () => { map.panTo([s.lat, s.lon]); openStationPanel(s.station); });
     container.appendChild(div);
   });
@@ -532,13 +704,13 @@ function closeTrainPanel() { document.getElementById('train-panel').style.displa
 function onSearch(query) {
   const box = document.getElementById('search-results');
   if (!query) { box.style.display = 'none'; return; }
-  const matches = stations.filter(s => s.name.includes(query)).slice(0, 15);
+  const matches = stations.filter(s => matchStation(s, query)).slice(0, 15);
   if (!matches.length) { box.style.display = 'none'; return; }
   box.innerHTML = '';
   matches.forEach(s => {
     const div = document.createElement('div');
     div.className = 'search-item';
-    div.textContent = s.name;
+    div.textContent = displayName(s.name);
     div.addEventListener('click', () => {
       document.getElementById('search-input').value = s.name;
       box.style.display = 'none';
@@ -596,6 +768,35 @@ function buildTripIndex() {
   }
 }
 
+// Resolve an input element to a Chinese station name
+function resolveStationName(inputEl) {
+  // 1. Check data-station attribute (set by autocomplete selection)
+  const ds = inputEl.dataset.station;
+  if (ds && stationDepartures[ds] !== undefined) return ds;
+
+  const val = inputEl.value.trim();
+  if (!val) return null;
+
+  // 2. Direct Chinese name match
+  if (stations.some(s => s.name === val)) return val;
+
+  // 3. "Chinese (English)" format — extract Chinese part
+  const parenMatch = val.match(/^(.+?)\s*\(/);
+  if (parenMatch && stations.some(s => s.name === parenMatch[1])) return parenMatch[1];
+
+  // 4. English name match (case-insensitive)
+  const cn = ENGLISH_TO_CHINESE[val.toLowerCase()];
+  if (cn) return cn;
+
+  // 5. Partial English match — find best
+  const q = val.toLowerCase();
+  for (const [en, cnName] of Object.entries(ENGLISH_TO_CHINESE)) {
+    if (en.startsWith(q)) return cnName;
+  }
+
+  return null;
+}
+
 function toggleTripPanel() {
   const panel = document.getElementById('trip-panel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -607,15 +808,16 @@ function closeTripPanel() {
 function tripAutocomplete(field, query) {
   const box = document.getElementById('trip-ac-' + field);
   if (!query || query.length < 1) { box.style.display = 'none'; return; }
-  const matches = stations.filter(s => s.train_count > 0 && s.name.includes(query)).slice(0, 12);
+  const matches = stations.filter(s => s.train_count > 0 && matchStation(s, query)).slice(0, 12);
   if (!matches.length) { box.style.display = 'none'; return; }
   box.innerHTML = '';
   matches.forEach(s => {
     const div = document.createElement('div');
     div.className = 'ta-item';
-    div.textContent = s.name;
+    div.textContent = displayName(s.name);
     div.addEventListener('click', () => {
-      document.getElementById('trip-' + field).value = s.name;
+      document.getElementById('trip-' + field).value = displayName(s.name);
+      document.getElementById('trip-' + field).dataset.station = s.name;
       box.style.display = 'none';
     });
     box.appendChild(div);
@@ -633,13 +835,18 @@ const MIN_TRANSFER_TIME = 10; // minutes minimum transfer at a station
 const MAX_TRANSFERS = 4;
 
 function findTrip() {
-  const fromStation = document.getElementById('trip-from').value.trim();
-  const toStation = document.getElementById('trip-to').value.trim();
+  const fromInput = document.getElementById('trip-from');
+  const toInput = document.getElementById('trip-to');
   const departInput = document.getElementById('trip-depart').value;
   const resultsDiv = document.getElementById('trip-results');
 
+  // Resolve station names: prefer data-station attribute (set by autocomplete click),
+  // otherwise try to parse the input (Chinese, English, or "Chinese (English)" format)
+  const fromStation = resolveStationName(fromInput);
+  const toStation = resolveStationName(toInput);
+
   if (!fromStation || !toStation) {
-    resultsDiv.innerHTML = '<div class="trip-no-result">Please enter both stations</div>';
+    resultsDiv.innerHTML = '<div class="trip-no-result">Please select valid stations from the suggestions</div>';
     return;
   }
   if (fromStation === toStation) {
@@ -647,7 +854,7 @@ function findTrip() {
     return;
   }
   if (!stationDepartures[fromStation]) {
-    resultsDiv.innerHTML = '<div class="trip-no-result">No departures from ' + fromStation + '</div>';
+    resultsDiv.innerHTML = '<div class="trip-no-result">No departures from ' + displayName(fromStation) + '</div>';
     return;
   }
 
@@ -783,7 +990,7 @@ function dijkstraTrip(from, to, departAfter) {
 
 function renderTripResults(itineraries, from, to, container) {
   if (itineraries.length === 0) {
-    container.innerHTML = '<div class="trip-no-result">No route found from ' + from + ' to ' + to + '<br><span style="font-size:0.75rem;color:#666">Try a different departure time or nearby stations</span></div>';
+    container.innerHTML = '<div class="trip-no-result">No route found from ' + displayName(from) + ' to ' + displayName(to) + '<br><span style="font-size:0.75rem;color:#666">Try a different departure time or nearby stations</span></div>';
     return;
   }
 
@@ -802,14 +1009,15 @@ function renderTripResults(itineraries, from, to, container) {
     itin.legs.forEach((leg, li) => {
       if (li > 0) {
         const waitTime = leg.fromTime - itin.legs[li - 1].toTime;
-        body += `<div class="trip-transfer">Transfer at ${leg.from} · wait ${waitTime} min</div>`;
+        const waitStr = waitTime >= 60 ? Math.floor(waitTime / 60) + 'h ' + (waitTime % 60) + 'm' : waitTime + ' min';
+        body += `<div class="trip-transfer">Transfer at ${displayName(leg.from)} · wait ${waitStr}</div>`;
       }
       body += `<div class="trip-leg">
         <div class="trip-leg-line"></div>
         <div class="trip-leg-info">
           <div class="trip-leg-train">Train ${leg.train_no}</div>
-          <div><span class="trip-leg-time">${formatTime(leg.fromTime)}</span> <span class="trip-leg-station">${leg.from}</span></div>
-          <div><span class="trip-leg-time">${formatTime(leg.toTime)}</span> <span class="trip-leg-station">${leg.to}</span></div>
+          <div><span class="trip-leg-time">${formatTime(leg.fromTime)}</span> <span class="trip-leg-station">${displayName(leg.from)}</span></div>
+          <div><span class="trip-leg-time">${formatTime(leg.toTime)}</span> <span class="trip-leg-station">${displayName(leg.to)}</span></div>
         </div>
       </div>`;
     });
@@ -817,6 +1025,212 @@ function renderTripResults(itineraries, from, to, container) {
     div.innerHTML = header + body;
     container.appendChild(div);
   });
+}
+
+// ===================== LODGING & ACTIVITIES DATA =====================
+
+const cityLodgingData = {
+  '大連': {
+    displayName: 'Dalian (Dairen) — 大連',
+    lat: 38.9130495, lon: 121.6098013,
+    lodging: [
+      {
+        name: 'Dairen Yamato Hotel',
+        jp: '大連ヤマトホテル',
+        details: 'Approx. 5 minutes from Dairen Station. Modern facilities with both Western and Japanese-style rooms.',
+        price: 'Room rates: ¥3.00 – ¥15.00'
+      },
+      {
+        name: 'Technical Association Hotel',
+        jp: '技術會館ホテル',
+        details: 'In Higashikoen-cho (in front of Mantetsu Head Office). Western and Japanese dining, billiards hall, barber shop.',
+        price: 'Rooms from ¥2.80 · Meals from ¥1.50'
+      }
+    ],
+    activities: [
+      { name: 'Liaodong Department Store', jp: '遼東百貨店', details: 'Located in Naniwa-cho, Dairen.' },
+      { name: 'Lucky Bar', jp: 'ラッキーバー', details: 'Located in the Rensa-gai district.' },
+      { name: 'Naniwa Sushi', jp: '浪花壽司', details: 'Located in Iwaki-cho, Dairen.' },
+      { name: 'Miyagemonoya Gift Shop', jp: 'みやげものや', details: 'Located on Nishi-dori, Dairen.' },
+      { name: 'Ueno Special Store', jp: 'ウエノ', details: 'Located in Tokiwa-cho, Dairen.' },
+      { name: 'Awa Kuni Kyodo Kisen', jp: '阿波國共同汽船', details: 'Shipping & Ferries. Scheduled lines to Tianjin, Incheon, and Antung.' }
+    ]
+  },
+  '奉天': {
+    displayName: 'Fengtian (Mukden) — 奉天',
+    lat: 41.7924481, lon: 123.3879307,
+    lodging: [
+      {
+        name: 'O-BIRU Hotel, Mukden',
+        jp: 'ホービル・ホテル',
+        details: 'Sumiyoshi-cho, center of Fengtian Ginza. 5-min walk from Fengtian Station. "Manchuria\'s greatest hotel" — grill, banquet halls, wedding venue, billiard room, rooftop garden. Porter service to station.',
+        price: 'Room rates: ¥4.00 – ¥20.00'
+      },
+      {
+        name: 'Manchuria Hotel',
+        jp: '満洲ホテル',
+        details: 'In front of Fengtian Station.',
+        price: null
+      }
+    ],
+    activities: [
+      { name: 'Inu / Seichō', jp: 'い ぬ / 青 鳥', details: 'Located on "Fengtian Ginza."' },
+      { name: 'Kasuga Grand Dining Hall', jp: '春日大食堂', details: 'Located on "Fengtian Ginza."' },
+      { name: 'International Tourism Grand Salon', jp: '国際観光 グランド・サロン', details: 'Social venue. Fengtian phone number listed.' },
+      { name: 'Manmo Department Store', jp: '満毛百貨店', details: 'Serving the Fengtian area.' },
+      { name: 'Kawamura Shoes', jp: '河村製靴店', details: 'Located on "Fengtian Ginza."' },
+      { name: 'Manchuria Grill', jp: '満洲グリル', details: 'Located near the Manchuria Hotel.' }
+    ]
+  },
+  '新京': {
+    displayName: 'Shinkyo (Hsinking) — 新京',
+    lat: 43.9088384, lon: 125.3177297,
+    lodging: [
+      {
+        name: 'Taiyo Hotel',
+        jp: '太陽ホテル',
+        details: 'Eiraku-cho 1-chome. Center of the capital near the station.',
+        price: 'Room rates: ¥3.50 – ¥7.50'
+      }
+    ],
+    activities: [
+      { name: 'Miss Toyo — Grand Cabaret', jp: 'ミス東洋', details: 'Grand social venue in the Nan-keijo district of Shinkyo.' },
+      { name: 'Mitsunaka Department Store', jp: '三中井', details: 'On Daido Avenue. Primary stop for travel goods and souvenirs.' }
+    ]
+  },
+  '哈爾濱': {
+    displayName: 'Harbin — 哈爾濱',
+    lat: 45.7593633, lon: 126.6276177,
+    lodging: [
+      {
+        name: 'Nagoya Hotel',
+        jp: '名古屋ホテル',
+        details: 'Mostovaya Street. Designated hotel for South Manchuria Railway.',
+        price: 'Rooms from ¥3.00 · Meals from ¥0.50'
+      }
+    ],
+    activities: [
+      { name: 'Florida Dance Hall', jp: 'フロリダ・ダンスホール', details: 'A popular entertainment hall in Harbin.' },
+      { name: 'Salon Salvador', jp: 'サロン・サルバドル', details: 'A café and social spot in Harbin.' }
+    ]
+  },
+  '北京': {
+    displayName: 'Beijing — 北京',
+    lat: 39.9057136, lon: 116.3912972,
+    lodging: [
+      {
+        name: 'Showa Hotel',
+        jp: '昭和ホテル',
+        details: 'East Shinnan-gai. Recommended by Japan Tourist Bureau.',
+        price: 'From ¥5.00 (includes two meals)'
+      },
+      {
+        name: 'Nihon Hotel',
+        jp: '日華ホテル',
+        details: 'Toyo Yoko-ko 37. Coupon designated hotel.',
+        price: null
+      },
+      {
+        name: 'Miyako Hotel',
+        jp: '都ホテル',
+        details: 'Higashijo-monbun-mon-gai. Recommended for sightseeing.',
+        price: null
+      },
+      {
+        name: 'Takashima Hotel',
+        jp: '高島ホテル',
+        details: 'East Shinnan-gai (Tane-kodo). Features an elegant atmosphere.',
+        price: null
+      }
+    ],
+    activities: [
+      { name: 'Wangfu Grill', jp: '王府グリル', details: 'High-class tea room and grill offering light meals, near the famous Wangfujing shopping district.' }
+    ]
+  },
+  '天津': {
+    displayName: 'Tianjin — 天津',
+    lat: 39.3032619, lon: 117.4163641,
+    lodging: [
+      {
+        name: 'Fuyo Hotel',
+        jp: '芙蓉ホテル',
+        details: 'Near the station. Known as a first-class accommodation in Tianjin.',
+        price: null
+      }
+    ],
+    activities: []
+  }
+};
+
+let lodgingMarkers = {};
+
+function drawLodgingIcons() {
+  Object.values(lodgingMarkers).forEach(m => map.removeLayer(m));
+  lodgingMarkers = {};
+
+  for (const [stationName, city] of Object.entries(cityLodgingData)) {
+    const icon = L.divIcon({
+      className: '',
+      html: '<div class="lodging-map-icon">🏨</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+    const marker = L.marker([city.lat, city.lon], { icon, zIndexOffset: 1000 }).addTo(map);
+    marker.bindTooltip(city.displayName + ' — Lodging & Activities', { direction: 'top', offset: [0, -16] });
+    marker.on('click', () => openLodgingPanel(stationName));
+    lodgingMarkers[stationName] = marker;
+  }
+}
+
+function openLodgingPanel(stationName) {
+  const city = cityLodgingData[stationName];
+  if (!city) return;
+
+  // Close the station panel if open
+  closeStationPanel();
+
+  const panel = document.getElementById('lodging-panel');
+  document.getElementById('lodging-city-name').textContent = city.displayName;
+
+  const content = document.getElementById('lodging-content');
+  let html = '';
+
+  // Lodging section
+  if (city.lodging.length > 0) {
+    html += '<div class="lodging-section lodging">';
+    html += '<div class="lodging-section-header">Lodging</div>';
+    city.lodging.forEach(h => {
+      html += '<div class="lodging-card">';
+      html += `<div class="lodging-card-name">${h.name}</div>`;
+      html += `<div class="lodging-card-jp">${h.jp}</div>`;
+      html += `<div class="lodging-card-detail">${h.details}</div>`;
+      if (h.price) html += `<span class="lodging-card-price">${h.price}</span>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Activities section
+  if (city.activities.length > 0) {
+    html += '<div class="lodging-section activities">';
+    html += '<div class="lodging-section-header">Entertainment & Activities</div>';
+    city.activities.forEach(a => {
+      html += '<div class="lodging-card">';
+      html += `<div class="lodging-card-name">${a.name}</div>`;
+      html += `<div class="lodging-card-jp">${a.jp}</div>`;
+      html += `<div class="lodging-card-detail">${a.details}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+  panel.style.display = 'block';
+  map.panTo([city.lat, city.lon]);
+}
+
+function closeLodgingPanel() {
+  document.getElementById('lodging-panel').style.display = 'none';
 }
 
 init();
