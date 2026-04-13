@@ -8,3 +8,4 @@ extracted_data/
 *.pdf
 *.json
 *.png
+openstreetmap/hotosm_chn_railways_lines_geojson.geojson
