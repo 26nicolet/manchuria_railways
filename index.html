@@ -106,6 +106,74 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 #legend h3 { color:#e94560; margin-bottom:6px; font-size:0.8rem; }
 .legend-row { display:flex; align-items:center; gap:6px; margin:3px 0; color:#ccc; }
 .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+/* ── Trip Planner ── */
+#trip-btn {
+  position:absolute; top:58px; left:12px; z-index:999;
+  background:#111; color:white; border:none; padding:8px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.85rem; font-weight:bold;
+}
+#trip-btn:hover { background:#333; }
+
+#trip-panel {
+  position:absolute; top:90px; left:12px; z-index:999;
+  background:rgba(22,33,62,0.97); border-radius:8px; padding:16px;
+  border:1px solid #e94560; width:370px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#trip-panel h2 { color:#e94560; font-size:1.1rem; margin-bottom:10px; }
+#trip-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+.trip-field { margin-bottom:8px; }
+.trip-field label { display:block; color:#aaa; font-size:0.75rem; margin-bottom:3px; }
+.trip-field input, .trip-field select {
+  width:100%; padding:6px 10px; border-radius:4px; border:1px solid #555;
+  background:#0d1b3e; color:#e0d8c8; font-size:0.85rem;
+}
+.trip-field input:focus { border-color:#e94560; outline:none; }
+.trip-autocomplete {
+  position:absolute; left:16px; right:16px;
+  background:#16213e; border:1px solid #555; border-top:none; border-radius:0 0 4px 4px;
+  max-height:150px; overflow-y:auto; z-index:1002; display:none;
+}
+.trip-autocomplete .ta-item {
+  padding:5px 10px; cursor:pointer; font-size:0.8rem; color:#ccc; border-bottom:1px solid #222;
+}
+.trip-autocomplete .ta-item:hover { background:#e94560; color:white; }
+#trip-search-btn {
+  width:100%; padding:8px; background:#e94560; color:white; border:none;
+  border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.9rem; margin-top:6px;
+}
+#trip-search-btn:hover { background:#c93050; }
+#trip-results { margin-top:12px; }
+.trip-no-result { color:#888; font-size:0.85rem; text-align:center; padding:12px; }
+.trip-itinerary {
+  background:rgba(233,69,96,0.08); border:1px solid #333; border-radius:6px;
+  padding:10px; margin-bottom:10px;
+}
+.trip-itinerary .ti-header {
+  display:flex; justify-content:space-between; margin-bottom:8px;
+  font-size:0.8rem; color:#aaa;
+}
+.trip-itinerary .ti-header .ti-dur { color:#e94560; font-weight:bold; }
+.trip-leg {
+  display:flex; align-items:stretch; gap:8px; margin-bottom:2px;
+  font-size:0.8rem; color:#ccc;
+}
+.trip-leg-line {
+  width:3px; background:#e94560; border-radius:2px; flex-shrink:0;
+  min-height:20px; margin: 2px 4px;
+}
+.trip-leg-info { flex:1; }
+.trip-leg-train { color:#53d769; font-weight:bold; font-size:0.75rem; }
+.trip-leg-time { color:#e94560; font-weight:bold; }
+.trip-leg-station { color:#e0d8c8; }
+.trip-transfer {
+  text-align:center; font-size:0.7rem; color:#888; padding:2px 0;
+  border-top:1px dashed #333; margin:4px 0;
+}
 </style>
 </head>
 <body>
@@ -150,6 +218,29 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:6px;height:6px"></span> Major station (10+ trains)</div>
   <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
   <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
+</div>
+
+<button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
+
+<div id="trip-panel">
+  <button class="close-btn" onclick="closeTripPanel()">&#10005;</button>
+  <h2>🚂 Trip Planner</h2>
+  <div class="trip-field" style="position:relative">
+    <label>From</label>
+    <input type="text" id="trip-from" placeholder="Departure station..." oninput="tripAutocomplete('from', this.value)" autocomplete="off">
+    <div class="trip-autocomplete" id="trip-ac-from"></div>
+  </div>
+  <div class="trip-field" style="position:relative">
+    <label>To</label>
+    <input type="text" id="trip-to" placeholder="Arrival station..." oninput="tripAutocomplete('to', this.value)" autocomplete="off">
+    <div class="trip-autocomplete" id="trip-ac-to"></div>
+  </div>
+  <div class="trip-field">
+    <label>Depart after</label>
+    <input type="time" id="trip-depart" value="06:00">
+  </div>
+  <button id="trip-search-btn" onclick="findTrip()">Find Itinerary</button>
+  <div id="trip-results"></div>
 </div>
 
 <div id="map"></div>
@@ -202,6 +293,9 @@ async function init() {
 
   // Pre-compute cumulative distances for geometry interpolation
   precomputeGeomDists();
+
+  // Build trip planner index
+  buildTripIndex();
 
   drawStations();
   updateTrains();
@@ -458,6 +552,272 @@ function onSearch(query) {
 document.addEventListener('click', e => {
   if (!e.target.closest('#search-box')) document.getElementById('search-results').style.display = 'none';
 });
+
+// ===================== TRIP PLANNER =====================
+
+// Build index: for each station, list of {routeIdx, stopIdx, time_min, train_no}
+let stationDepartures = {}; // station -> [{routeIdx, stopIdx, time_min, train_no, nextStops: [{station, time_min, stopIdx}]}]
+
+function buildTripIndex() {
+  stationDepartures = {};
+  routes.forEach((route, ri) => {
+    const stops = route.stops;
+    for (let i = 0; i < stops.length - 1; i++) {
+      const stn = stops[i].station;
+      if (!stationDepartures[stn]) stationDepartures[stn] = [];
+      // Collect all subsequent stops on this train
+      const nextStops = [];
+      for (let j = i + 1; j < stops.length; j++) {
+        if (stops[j].time_min > stops[i].time_min) {
+          nextStops.push({
+            station: stops[j].station,
+            time_min: stops[j].time_min,
+            stopIdx: j,
+          });
+        } else {
+          break; // Time went backwards, stop
+        }
+      }
+      if (nextStops.length > 0) {
+        stationDepartures[stn].push({
+          routeIdx: ri,
+          stopIdx: i,
+          time_min: stops[i].time_min,
+          train_no: route.train_no,
+          routeId: route.id,
+          nextStops,
+        });
+      }
+    }
+  });
+  // Sort departures by time at each station
+  for (const stn of Object.keys(stationDepartures)) {
+    stationDepartures[stn].sort((a, b) => a.time_min - b.time_min);
+  }
+}
+
+function toggleTripPanel() {
+  const panel = document.getElementById('trip-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+function closeTripPanel() {
+  document.getElementById('trip-panel').style.display = 'none';
+}
+
+function tripAutocomplete(field, query) {
+  const box = document.getElementById('trip-ac-' + field);
+  if (!query || query.length < 1) { box.style.display = 'none'; return; }
+  const matches = stations.filter(s => s.train_count > 0 && s.name.includes(query)).slice(0, 12);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.innerHTML = '';
+  matches.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'ta-item';
+    div.textContent = s.name;
+    div.addEventListener('click', () => {
+      document.getElementById('trip-' + field).value = s.name;
+      box.style.display = 'none';
+    });
+    box.appendChild(div);
+  });
+  box.style.display = 'block';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#trip-panel')) {
+    document.getElementById('trip-ac-from').style.display = 'none';
+    document.getElementById('trip-ac-to').style.display = 'none';
+  }
+});
+
+const MIN_TRANSFER_TIME = 10; // minutes minimum transfer at a station
+const MAX_TRANSFERS = 4;
+
+function findTrip() {
+  const fromStation = document.getElementById('trip-from').value.trim();
+  const toStation = document.getElementById('trip-to').value.trim();
+  const departInput = document.getElementById('trip-depart').value;
+  const resultsDiv = document.getElementById('trip-results');
+
+  if (!fromStation || !toStation) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">Please enter both stations</div>';
+    return;
+  }
+  if (fromStation === toStation) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">Origin and destination are the same</div>';
+    return;
+  }
+  if (!stationDepartures[fromStation]) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">No departures from ' + fromStation + '</div>';
+    return;
+  }
+
+  const [hh, mm] = departInput.split(':').map(Number);
+  const departAfter = hh * 60 + mm;
+
+  resultsDiv.innerHTML = '<div class="trip-no-result">Searching...</div>';
+
+  // Use setTimeout to let the UI update
+  setTimeout(() => {
+    const itineraries = dijkstraTrip(fromStation, toStation, departAfter);
+    renderTripResults(itineraries, fromStation, toStation, resultsDiv);
+  }, 10);
+}
+
+// Dijkstra-like search: state = (station, time), find earliest arrivals at destination
+// Each edge = riding a train from station A to a later stop on the same train
+function dijkstraTrip(from, to, departAfter) {
+  // State: {station, time, legs: [{train_no, routeId, from, fromTime, to, toTime}]}
+  // Priority queue by arrival time
+  // best[station] = earliest arrival time we've found
+  const best = {};
+  best[from] = departAfter;
+
+  // PQ: simple array sorted by time (small graph, fine for this)
+  const pq = []; // {station, time, legs, transfers}
+  pq.push({ station: from, time: departAfter, legs: [], transfers: 0 });
+
+  const results = [];
+  const MAX_RESULTS = 3;
+  let iterations = 0;
+  const MAX_ITER = 50000;
+
+  while (pq.length > 0 && iterations < MAX_ITER) {
+    iterations++;
+    // Pop the state with smallest time
+    let bestIdx = 0;
+    for (let i = 1; i < pq.length; i++) {
+      if (pq[i].time < pq[bestIdx].time) bestIdx = i;
+    }
+    const state = pq.splice(bestIdx, 1)[0];
+
+    // Skip if we've already found a better path to this station
+    if (state.time > (best[state.station] || Infinity) + MIN_TRANSFER_TIME && state.station !== from) continue;
+
+    // Check if we've reached destination
+    if (state.station === to) {
+      results.push(state);
+      if (results.length >= MAX_RESULTS) break;
+      continue;
+    }
+
+    // Too many transfers
+    if (state.transfers > MAX_TRANSFERS) continue;
+    // Don't search past midnight
+    if (state.time > 1439) continue;
+
+    const departures = stationDepartures[state.station];
+    if (!departures) continue;
+
+    // Find all trains departing from this station at or after our arrival + transfer time
+    const minDepart = state.station === from && state.legs.length === 0
+      ? state.time  // No transfer time needed at origin
+      : state.time + MIN_TRANSFER_TIME;
+
+    // Binary search for first departure >= minDepart
+    let lo = 0, hi = departures.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (departures[mid].time_min < minDepart) lo = mid + 1; else hi = mid;
+    }
+
+    // Track which routeIds we've already tried from this state to avoid duplicates
+    const triedRoutes = new Set();
+
+    for (let di = lo; di < departures.length; di++) {
+      const dep = departures[di];
+
+      // Don't board the same train we just got off of
+      if (state.legs.length > 0) {
+        const lastLeg = state.legs[state.legs.length - 1];
+        if (dep.routeId === lastLeg.routeId) continue;
+      }
+
+      // Skip duplicate routes
+      if (triedRoutes.has(dep.routeId)) continue;
+      triedRoutes.add(dep.routeId);
+
+      // Try getting off at each subsequent stop
+      for (const ns of dep.nextStops) {
+        const arrivalTime = ns.time_min;
+
+        // Only bother if this improves best known arrival at that station
+        if (arrivalTime >= (best[ns.station] || Infinity) + MIN_TRANSFER_TIME) continue;
+
+        // Direct to destination: always consider
+        // Intermediate: check if it improves
+        if (arrivalTime < (best[ns.station] || Infinity) || ns.station === to) {
+          if (ns.station !== to) best[ns.station] = arrivalTime;
+
+          const newLeg = {
+            train_no: dep.train_no,
+            routeId: dep.routeId,
+            from: state.station,
+            fromTime: dep.time_min,
+            to: ns.station,
+            toTime: arrivalTime,
+          };
+
+          pq.push({
+            station: ns.station,
+            time: arrivalTime,
+            legs: [...state.legs, newLeg],
+            transfers: state.transfers + (state.legs.length > 0 ? 1 : 0),
+          });
+        }
+      }
+    }
+  }
+
+  // Deduplicate: keep distinct itineraries (different train sequences)
+  const seen = new Set();
+  const unique = [];
+  for (const r of results) {
+    const key = r.legs.map(l => l.routeId + ':' + l.from + '-' + l.to).join('|');
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(r);
+    }
+  }
+  return unique;
+}
+
+function renderTripResults(itineraries, from, to, container) {
+  if (itineraries.length === 0) {
+    container.innerHTML = '<div class="trip-no-result">No route found from ' + from + ' to ' + to + '<br><span style="font-size:0.75rem;color:#666">Try a different departure time or nearby stations</span></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  itineraries.forEach((itin, idx) => {
+    const totalTime = itin.time - itin.legs[0].fromTime;
+    const div = document.createElement('div');
+    div.className = 'trip-itinerary';
+
+    let header = `<div class="ti-header">
+      <span>Option ${idx + 1} · ${itin.legs.length === 1 ? 'Direct' : (itin.legs.length - 1) + ' transfer' + (itin.legs.length > 2 ? 's' : '')}</span>
+      <span class="ti-dur">${Math.floor(totalTime / 60)}h ${totalTime % 60}m</span>
+    </div>`;
+
+    let body = '';
+    itin.legs.forEach((leg, li) => {
+      if (li > 0) {
+        const waitTime = leg.fromTime - itin.legs[li - 1].toTime;
+        body += `<div class="trip-transfer">Transfer at ${leg.from} · wait ${waitTime} min</div>`;
+      }
+      body += `<div class="trip-leg">
+        <div class="trip-leg-line"></div>
+        <div class="trip-leg-info">
+          <div class="trip-leg-train">Train ${leg.train_no}</div>
+          <div><span class="trip-leg-time">${formatTime(leg.fromTime)}</span> <span class="trip-leg-station">${leg.from}</span></div>
+          <div><span class="trip-leg-time">${formatTime(leg.toTime)}</span> <span class="trip-leg-station">${leg.to}</span></div>
+        </div>
+      </div>`;
+    });
+
+    div.innerHTML = header + body;
+    container.appendChild(div);
+  });
+}
 
 init();
 </script>
