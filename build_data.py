@@ -213,7 +213,7 @@ def build_train_routes(entries, station_coords):
 def load_osm_as_graph(station_coords):
     """Load selected_railways.geojson and build a networkx graph,
     filtering to only features near dataset stations."""
-    NEAR_THRESH = 0.3  # ~30 km in degrees
+    NEAR_THRESH = 0.8  # ~80 km in degrees (needed for long-haul routes like Ha-Jia line)
 
     # Build station KDTree
     stn_pts = np.array([[v['lon'], v['lat']] for v in station_coords.values()])
