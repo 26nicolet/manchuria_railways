@@ -6,6 +6,13 @@ venv/
 .DS_Store
 extracted_data/
 *.pdf
-*.json
 *.png
-openstreetmap/hotosm_chn_railways_lines_geojson.geojson
+
+# Ignore large/generated JSON files but allow results/ data files
+openstreetmap/*.geojson
+openstreetmap/*.json
+results/stations_web.json
+results/stations_filtered.json
+results/trains.json
+results/trains_filtered.json
+results/train_entries_station_master_combined.json
