@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>滿洲支那汽車時間表 — 1940 Manchuria Railway Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+button, input, select, textarea { font-family:inherit; }
+body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color:#e0d8c8; overflow:hidden; }
+
+#map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
+
+#topbar {
+  position:absolute; top:0; left:0; right:0; z-index:1000;
+  background: #F5C518;
+  border-bottom: 2px solid #333;
+  padding: 8px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+#topbar h1 { font-size: 1.3rem; color:#111; letter-spacing:2px; display:flex; align-items:center; gap:10px; }
+#topbar h1 span { color:#333; font-weight:300; font-size:0.8rem; margin-left:10px; }
+.manchukuo-flag { height:28px; width:50px; border:1px solid #ccc; }
+
+#time-controls { display:flex; align-items:center; gap:12px; }
+#time-display {
+  font-size:1.5rem; font-weight:bold; color:#111;
+  min-width:100px; text-align:center;
+}
+#time-slider { width:300px; accent-color:#111; cursor:pointer; }
+.ctrl-btn {
+  background:#111; color:white; border:none; padding:6px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
+}
+.ctrl-btn:hover { background:#333; }
+.ctrl-btn.active { background:#333; }
+#speed-display { font-size:0.8rem; color:white; min-width:50px; }
+
+#statsbar {
+  position:absolute; top:52px; left:0; right:0; z-index:999;
+  background:rgba(22,33,62,0.9); padding:6px 20px;
+  display:flex; gap:30px; font-size:0.85rem; color:#aaa;
+  border-bottom:1px solid #333;
+}
+.stat-val { color:#e94560; font-weight:bold; margin-left:4px; }
+
+#station-panel {
+  position:absolute; top:90px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.95); border-radius:8px; padding:14px;
+  border:1px solid #e94560; width:340px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#station-panel h2 { color:#e94560; font-size:1.2rem; margin-bottom:4px; }
+#station-panel .sub { color:#aaa; font-size:0.8rem; margin-bottom:10px; }
+#station-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+#station-timetable { width:100%; border-collapse:collapse; margin-top:8px; }
+#station-timetable th {
+  background:#e94560; color:white; padding:5px 8px; font-size:0.75rem; text-align:left;
+}
+#station-timetable td {
+  padding:4px 8px; border-bottom:1px solid #333; font-size:0.8rem; color:#ccc;
+}
+#station-timetable tr:hover td { background:rgba(233,69,96,0.15); }
+
+#train-panel {
+  position:absolute; bottom:20px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.95); border-radius:8px; padding:14px;
+  border:1px solid #53d769; width:320px; max-height:300px;
+  overflow-y:auto; display:none;
+}
+#train-panel h2 { color:#53d769; font-size:1rem; margin-bottom:8px; }
+#train-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#53d769;
+  font-size:1.2rem; background:none; border:none;
+}
+.train-stop { font-size:0.8rem; padding:3px 0; color:#ccc; border-bottom:1px solid #222; }
+.train-stop .ts-time { color:#e94560; font-weight:bold; display:inline-block; width:50px; }
+.train-stop .ts-station { color:#e0d8c8; }
+.train-stop .ts-type { color:#888; font-size:0.7rem; margin-left:6px; }
+.train-stop.active { background:rgba(83,215,105,0.2); border-radius:3px; }
+
+#search-box { position:relative; display:none; }
+#search-input {
+  padding:5px 10px; border-radius:4px; border:1px solid #999;
+  background:#fff; color:#111; font-size:0.85rem; width:200px;
+}
+#search-results {
+  position:absolute; top:100%; left:0; width:200px;
+  background:#16213e; border:1px solid #555; border-radius:0 0 4px 4px;
+  max-height:200px; overflow-y:auto; display:none; z-index:1001;
+}
+.search-item {
+  padding:6px 10px; cursor:pointer; font-size:0.8rem; color:#ccc; border-bottom:1px solid #222;
+}
+.search-item:hover { background:#e94560; color:white; }
+#topbar-trip-btn {
+  background:#111; color:white; border:none; padding:6px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
+}
+#topbar-trip-btn:hover { background:#333; }
+
+#legend {
+  position:absolute; bottom:20px; left:12px; z-index:999;
+  background:rgba(22,33,62,0.95); border-radius:8px; padding:10px 14px;
+  border:1px solid #333; font-size:0.75rem;
+}
+#legend h3 { color:#e94560; margin-bottom:6px; font-size:0.8rem; }
+.legend-row { display:flex; align-items:center; gap:6px; margin:3px 0; color:#ccc; }
+.legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+/* ── Trip Planner ── */
+#trip-btn { display:none; }
+
+#trip-panel {
+  position:absolute; top:90px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.97); border-radius:8px; padding:16px;
+  border:1px solid #e94560; width:370px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#trip-panel h2 { color:#e94560; font-size:1.1rem; margin-bottom:10px; }
+#trip-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+.trip-field { margin-bottom:8px; }
+.trip-field label { display:block; color:#aaa; font-size:0.75rem; margin-bottom:3px; }
+.trip-field input, .trip-field select {
+  width:100%; padding:6px 10px; border-radius:4px; border:1px solid #555;
+  background:#0d1b3e; color:#e0d8c8; font-size:0.85rem;
+}
+.trip-field input:focus { border-color:#e94560; outline:none; }
+.trip-autocomplete {
+  position:absolute; left:16px; right:16px;
+  background:#16213e; border:1px solid #555; border-top:none; border-radius:0 0 4px 4px;
+  max-height:150px; overflow-y:auto; z-index:1002; display:none;
+}
+.trip-autocomplete .ta-item {
+  padding:5px 10px; cursor:pointer; font-size:0.8rem; color:#ccc; border-bottom:1px solid #222;
+}
+.trip-autocomplete .ta-item:hover { background:#e94560; color:white; }
+#trip-search-btn {
+  width:100%; padding:8px; background:#e94560; color:white; border:none;
+  border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.9rem; margin-top:6px;
+}
+#trip-search-btn:hover { background:#c93050; }
+#trip-results { margin-top:12px; }
+.trip-no-result { color:#888; font-size:0.85rem; text-align:center; padding:12px; }
+.trip-itinerary {
+  background:rgba(233,69,96,0.08); border:1px solid #333; border-radius:6px;
+  padding:10px; margin-bottom:10px;
+}
+.trip-itinerary .ti-header {
+  display:flex; justify-content:space-between; margin-bottom:8px;
+  font-size:0.8rem; color:#aaa;
+}
+.trip-itinerary .ti-header .ti-dur { color:#e94560; font-weight:bold; }
+.trip-leg {
+  display:flex; align-items:stretch; gap:8px; margin-bottom:2px;
+  font-size:0.8rem; color:#ccc;
+}
+.trip-leg-line {
+  width:3px; background:#e94560; border-radius:2px; flex-shrink:0;
+  min-height:20px; margin: 2px 4px;
+}
+.trip-leg-info { flex:1; }
+.trip-leg-train { color:#53d769; font-weight:bold; font-size:0.75rem; }
+.trip-leg-time { color:#e94560; font-weight:bold; }
+.trip-leg-station { color:#e0d8c8; }
+.trip-transfer {
+  text-align:center; font-size:0.7rem; color:#888; padding:2px 0;
+  border-top:1px dashed #333; margin:4px 0;
+}
+
+/* ── Lodging & Activities Panel ── */
+#lodging-panel {
+  position:absolute; top:90px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.97); border-radius:10px; padding:18px;
+  border:1px solid #e94560; width:380px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#lodging-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+#lodging-panel h2 {
+  color:#e94560; font-size:1.2rem; margin-bottom:12px;
+}
+.lodging-section {
+  margin-bottom:16px;
+}
+.lodging-section-header {
+  border-radius:20px; padding:6px 16px; font-weight:bold; font-size:0.85rem;
+  text-align:center; margin-bottom:10px; letter-spacing:1px; text-transform:uppercase;
+}
+.lodging-section.lodging .lodging-section-header {
+  background:rgba(76,175,80,0.25); color:#81c784; border:1px solid #81c784;
+}
+.lodging-section.activities .lodging-section-header {
+  background:rgba(255,152,0,0.25); color:#ffb74d; border:1px solid #ffb74d;
+}
+.lodging-card {
+  border-radius:8px; padding:10px 12px; margin-bottom:8px;
+}
+.lodging-section.lodging .lodging-card {
+  background:rgba(76,175,80,0.08); border:1px solid rgba(76,175,80,0.4);
+}
+.lodging-section.activities .lodging-card {
+  background:rgba(255,152,0,0.08); border:1px solid rgba(255,152,0,0.4);
+}
+.lodging-card-name {
+  font-weight:bold; font-size:0.9rem; margin-bottom:2px;
+}
+.lodging-section.lodging .lodging-card-name { color:#a5d6a7; }
+.lodging-section.activities .lodging-card-name { color:#ffcc80; }
+.lodging-card-jp {
+  font-size:0.75rem; color:#888; margin-bottom:4px;
+}
+.lodging-card-detail {
+  font-size:0.78rem; color:#bbb; line-height:1.4;
+}
+.lodging-card-price {
+  display:inline-block; margin-top:4px; padding:2px 8px; border-radius:10px;
+  font-size:0.72rem; font-weight:bold;
+}
+.lodging-section.lodging .lodging-card-price {
+  background:rgba(76,175,80,0.2); color:#81c784;
+}
+.lodging-section.activities .lodging-card-price {
+  background:rgba(255,152,0,0.2); color:#ffb74d;
+}
+
+.lodging-map-icon {
+  background:rgba(22,33,62,0.9); border:2px solid #ffb74d; border-radius:50%;
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  font-size:14px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+}
+.lodging-map-icon:hover { transform:scale(1.2); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect width="600" height="100" fill="#CE1126"/><rect y="100" width="600" height="100" fill="#3A75C4"/><rect y="200" width="600" height="100" fill="#fff"/><rect y="300" width="600" height="100" fill="#111"/></svg>滿洲支那汽車時間表<span> 1940 Railway Tracker</span></h1>
+  <div id="time-controls">
+    <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">&#9654; Play</button>
+    <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">1x</span></button>
+    <input type="range" id="time-slider" min="0" max="1439" value="360" oninput="setTime(+this.value)">
+    <div id="time-display">06:00</div>
+  </div>
+  <div id="search-box">
+    <input type="text" id="search-input" placeholder="Search station..." oninput="onSearch(this.value)">
+    <div id="search-results"></div>
+  </div>
+  <button id="topbar-trip-btn" onclick="toggleTripPanel()"> Plan Your Trip Today</button>
+</div>
+
+<!-- <div id="statsbar">
+  <span>Active Trains: <span class="stat-val" id="stat-active">0</span></span>
+</div> -->
+
+<div id="station-panel">
+  <button class="close-btn" onclick="closeStationPanel()">&#10005;</button>
+  <h2 id="sp-name"></h2>
+  <div class="sub" id="sp-sub"></div>
+  <table id="station-timetable">
+    <thead><tr><th>Time</th><th>Train</th><th>Next</th></tr></thead>
+    <tbody id="sp-tbody"></tbody>
+  </table>
+</div>
+
+<div id="train-panel">
+  <button class="close-btn" onclick="closeTrainPanel()">&#10005;</button>
+  <h2 id="tp-title"></h2>
+  <div id="tp-stops"></div>
+</div>
+
+<div id="legend">
+  <h3>Legend</h3>
+  <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
+  <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:6px;height:6px"></span> Major station (10+ trains)</div>
+  <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
+  <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
+  <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
+</div>
+
+<button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
+
+<div id="trip-panel">
+  <button class="close-btn" onclick="closeTripPanel()">&#10005;</button>
+  <h2>🚂 Trip Planner</h2>
+  <div class="trip-field" style="position:relative">
+    <label>From</label>
+    <input type="text" id="trip-from" placeholder="Departure station..." oninput="tripAutocomplete('from', this.value)" autocomplete="off">
+    <div class="trip-autocomplete" id="trip-ac-from"></div>
+  </div>
+  <div class="trip-field" style="position:relative">
+    <label>To</label>
+    <input type="text" id="trip-to" placeholder="Arrival station..." oninput="tripAutocomplete('to', this.value)" autocomplete="off">
+    <div class="trip-autocomplete" id="trip-ac-to"></div>
+  </div>
+  <div class="trip-field">
+    <label>Depart after</label>
+    <input type="time" id="trip-depart" value="06:00">
+  </div>
+  <button id="trip-search-btn" onclick="findTrip()">Find Itinerary</button>
+  <div id="trip-results"></div>
+</div>
+
+<div id="lodging-panel">
+  <button class="close-btn" onclick="closeLodgingPanel()">&#10005;</button>
+  <h2 id="lodging-city-name"></h2>
+  <div id="lodging-content"></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ===================== STATION ENGLISH NAMES (1940s romanizations) =====================
+const STATION_ENGLISH = {
+  '一面坡':'Imienpo','三家店':'Sanchiaten','三岔河':'Sanchaho','三棵樹':'Sankeshu',
+  '三源浦':'Sanyuanpu','三盛玉':'Sanshengyu','下城子':'Hsiachengtzu','九站':'Chiuchan',
+  '九臺':'Chiutai','五龍背':'Wulungpei','京城':'Keijo','仁川':'Jinsen',
+  '佳木斯':'Chiamussu','免渡河':'Mientuho','八面城':'Pamiencheng','公主嶺':'Kungchuling',
+  '其塔木':'Chitamu','北京':'Peking','北安':'Peian','北戴河':'Peitaiho',
+  '千山':'Chienshan','南張村':'Nanchangtsun','南芬':'Nanfen','南關嶺':'Nankuanling',
+  '南雜木':'Nantsamu','博克圖':'Pokotu','口前':'Kouchien','吉林':'Kirin',
+  '周家':'Chouchia','周水子':'Choushuitzu','呼蘭':'Hulan','哈爾濱':'Harbin',
+  '唐山':'Tangshan','四平':'Szeping','四平街':'Szepingkai','圖們':'Tumen',
+  '城子街':'Chengtzuchieh','塘沽':'Tangku','大孤山':'Takushan','大房身':'Tafangshen',
+  '大石橋':'Tashihchiao','大石頭':'Tashihtou','大興':'Tahsing','大虎山':'Tahushan',
+  '大賚':'Talai','大連':'Dairen','天橋嶺':'Tienchiaoling','天津':'Tientsin',
+  '太平川':'Taipingchuan','奉天':'Mukden','威虎嶺':'Weihuling','孟家屯':'Mengchiatun',
+  '孤店子':'Kutientzu','安圖':'Antu','安廣':'Ankuang','安東':'Antung',
+  '安達':'Anta','富拉爾基':'Fularchi','寧安':'Ningan','小嶺':'Hsiaoling',
+  '山城鎭':'Shanchengchen','山海關':'Shanhaikuan','岔路河':'Chaluho','康平':'Kangping',
+  '廊坊':'Langfang','延吉':'Yenchi','彰武':'Changwu','得利寺':'Telissu',
+  '德惠':'Tehui','德縣':'Tehsien','扎蘭屯':'Chalantun','拉林':'Lalin',
+  '撫順':'Fushun','敦化':'Tunhua','新京':'Hsinking','新安州':'Sinanju',
+  '新民':'Hsinmin','新立屯':'Hsinlitun','新站':'Hsinchan','新臺子':'Hsintaitzu',
+  '旅順':'Port Arthur','昂昂溪':'Angangchi','昌圖':'Changtu','昌黎':'Changli',
+  '明月溝':'Mingyuehkou','普蘭店':'Pulantien','朝陽川':'Chaoyangchuan','本溪湖':'Penhsihu',
+  '東京城':'Tungchingcheng','東寧':'Tungning','東豐':'Tungfeng','松花江':'Sungari',
+  '林口':'Linkou','林甸':'Lintien','柳河':'Liuho','梅河口':'Meihokou',
+  '橫道河子':'Hengtaohotzu','水原':'Suigen','永登浦':'Yongdungpo','江橋':'Chiangchiao',
+  '沙崗':'Shakang','沙河口':'Shahokou','泰來':'Tailai','津':'Tsin',
+  '洮南':'Taonan','海倫':'Hailun','海城':'Haicheng','海拉爾':'Hailar',
+  '海林':'Hailin','海龍':'Hailung','渾河':'Hunho','湯山城':'Tangshancheng',
+  '湯崗子':'Tangkangtzu','溝幇子':'Koupangtzu','溝幫子':'Koupangtzu','灤縣':'Luanhsien',
+  '烏吉密':'Wuchimi','熊岳城':'Hsiungyuehcheng','營口':'Yingkou','牙克石':'Yakoshih',
+  '牡丹江':'Mutankiang','玉泉':'Yuchuan','王府':'Wangfu','琉璃河':'Liuliho',
+  '琿春':'Hunchun','瓦房店':'Wafangtien','田莊臺':'Tienchuangtai','盤山':'Panshan',
+  '石峴':'Sokhyon','石頭河子':'Shihtouhotzu','秦皇島':'Chinwangtao','穆稜':'Muling',
+  '索倫':'Solun','綏中':'Suichung','綏化':'Suihua','綏芬河':'Suifenho',
+  '綏陽':'Suiyang','羅津':'Rashin','老頭溝':'Laotoukou','臨江':'Linkiang',
+  '興城':'Hsingcheng','興安嶺':'Hsinganling','舒蘭':'Shulan','范家屯':'Fanchiatun',
+  '草河口':'Tsaohokou','莊河':'Chuangho','葦河':'Weiho','葫蘆島':'Hulutao',
+  '蔡家溝':'Tsaichiakou','蘆臺':'Lutai','蘇家屯':'Suchiatun','虎石臺':'Hushihtai',
+  '蛟河':'Chiaoho','西直門':'Hsichihmen','訓戎':'Hunyung','訥河':'Neho',
+  '軍糧城':'Chunliangcheng','通化':'Tunghua','通遠堡':'Tungyuanpu','通遼':'Tungliao',
+  '連山關':'Lienshankuan','遼源':'Liaoyuan','遼陽':'Liaoyang','郭家店':'Kuochiatien',
+  '鄭家屯':'Chengchiatun','金州':'Kinchow','錦州':'Chinchow','鎮東':'Chentung',
+  '鐵嶺':'Tiehling','長春':'Changchun','長辛店':'Changhsintien','開原':'Kaiyuan',
+  '開山屯':'Kaishantun','開通':'Kaitung','開魯':'Kailu','阿什河':'Ashiho',
+  '陶賴昭':'Taolaichao','雙城堡':'Shuangchengpu','靠山屯':'Kaoshantun','鞍山':'Anshan',
+  '額穆':'Emu','首山':'Shoushan','高碑店':'Kaopeitien','鴨園':'Yayuan',
+  '黃州':'Hwangju','黃泥河':'Huangniho','齊齊哈爾':'Tsitsihar',
+};
+// Reverse lookup: English (lowercase) -> Chinese
+const ENGLISH_TO_CHINESE = {};
+for (const [cn, en] of Object.entries(STATION_ENGLISH)) {
+  ENGLISH_TO_CHINESE[en.toLowerCase()] = cn;
+}
+
+// Display name: "Chinese (English)" for bilingual display
+function displayName(chineseName) {
+  const en = STATION_ENGLISH[chineseName];
+  return en ? chineseName + ' (' + en + ')' : chineseName;
+}
+
+// Match station by query (Chinese or English, case-insensitive)
+function matchStation(station, query) {
+  const q = query.toLowerCase();
+  if (station.name.includes(query)) return true;
+  const en = STATION_ENGLISH[station.name];
+  if (en && en.toLowerCase().includes(q)) return true;
+  return false;
+}
+
+// ===================== CONFIG =====================
+const MAP_CENTER = [43.5, 126.5];
+const MAP_ZOOM = 6;
+
+// ===================== STATE =====================
+let routes = [];
+let stations = [];
+let currentMinutes = 360;
+let playing = false;
+let speed = 30;
+let tickInterval = null;
+
+let map;
+let stationMarkers = {};
+let trainMarkers = {};
+
+// Pre-computed: cumulative distances along each geometry segment
+// routeGeomDists[routeIdx][segIdx] = [cumDist0, cumDist1, ...]
+let routeGeomDists = [];
+
+// ===================== INIT =====================
+async function init() {
+  map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CARTO &copy; OSM',
+    maxZoom: 19, subdomains: 'abcd',
+  }).addTo(map);
+
+  const [routeData, stationData, railwayData] = await Promise.all([
+    fetch('results/route_data.json').then(r => r.json()),
+    fetch('results/all_stations.json').then(r => r.json()),
+    fetch('results/railway_network.json').then(r => r.json()),
+  ]);
+
+  routes = routeData;
+  stations = stationData;
+
+  // Draw railway network background
+  L.geoJSON(railwayData, {
+    style: { color: '#e94560', weight: 2.5, opacity: 0.7 },
+    interactive: false,
+  }).addTo(map);
+
+  // Pre-compute cumulative distances for geometry interpolation
+  precomputeGeomDists();
+
+  // Build trip planner index
+  buildTripIndex();
+
+  drawStations();
+  drawLodgingIcons();
+  updateTrains();
+
+  // Redraw trains on zoom so dot sizes update
+  map.on('zoomend', () => updateTrains());
+}
+
+function precomputeGeomDists() {
+  routeGeomDists = routes.map(route => {
+    const geom = route.geometry || [];
+    return geom.map(seg => {
+      const dists = [0];
+      for (let i = 1; i < seg.length; i++) {
+        const dlat = seg[i][0] - seg[i-1][0];
+        const dlon = seg[i][1] - seg[i-1][1];
+        dists.push(dists[i-1] + Math.sqrt(dlat*dlat + dlon*dlon));
+      }
+      return dists;
+    });
+  });
+}
+
+// Interpolate position along a geometry segment at given fraction (0..1)
+function interpGeom(seg, dists, frac) {
+  if (!seg || seg.length < 2 || !dists || dists.length < 2) {
+    return seg ? seg[0] : null;
+  }
+  const totalDist = dists[dists.length - 1];
+  if (totalDist === 0) return seg[0];
+
+  const targetDist = frac * totalDist;
+
+  // Binary search for the right segment
+  let lo = 0, hi = dists.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (dists[mid] <= targetDist) lo = mid; else hi = mid;
+  }
+
+  const segFrac = (dists[hi] - dists[lo]) > 0
+    ? (targetDist - dists[lo]) / (dists[hi] - dists[lo])
+    : 0;
+
+  return [
+    seg[lo][0] + (seg[hi][0] - seg[lo][0]) * segFrac,
+    seg[lo][1] + (seg[hi][1] - seg[lo][1]) * segFrac,
+  ];
+}
+
+function drawStations() {
+  Object.values(stationMarkers).forEach(m => map.removeLayer(m));
+  stationMarkers = {};
+
+  stations.forEach(s => {
+    if (s.train_count < 1) return;
+    const isMajor = s.train_count >= 10;
+    const marker = L.circleMarker([s.lat, s.lon], {
+      radius: isMajor ? 4.5 : 3,
+      fillColor: isMajor ? '#FFD700' : '#4a90d9',
+      fillOpacity: isMajor ? 1.0 : 0.8,
+      stroke: true,
+      color: isMajor ? '#fff' : '#2c5f8a',
+      weight: isMajor ? 2 : 1,
+    }).addTo(map);
+
+    marker.on('click', () => openStationPanel(s.name));
+    marker.bindTooltip(displayName(s.name), { direction: 'top', offset: [0, -5] });
+    stationMarkers[s.name] = marker;
+  });
+}
+
+// ===================== TIME CONTROL =====================
+function formatTime(minutes) {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = Math.floor(minutes) % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+function setTime(mins) {
+  currentMinutes = Math.floor(mins) % 1440;
+  document.getElementById('time-slider').value = currentMinutes;
+  document.getElementById('time-display').textContent = formatTime(currentMinutes);
+  updateTrains();
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('btn-play');
+  btn.innerHTML = playing ? '&#9208; Pause' : '&#9654; Play';
+  btn.classList.toggle('active', playing);
+  playing ? startTicker() : stopTicker();
+}
+
+function startTicker() {
+  stopTicker();
+  tickInterval = setInterval(() => setTime(currentMinutes + 1), 1000 / speed);
+}
+function stopTicker() {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+}
+
+function changeSpeed() {
+  const speeds = [30, 60, 120];
+  const labels = ['1x', '2x', '4x'];
+  const idx = speeds.indexOf(speed);
+  const next = (idx + 1) % speeds.length;
+  speed = speeds[next];
+  document.getElementById('speed-display').textContent = labels[next];
+  if (playing) startTicker();
+}
+
+// ===================== TRAIN RENDERING =====================
+function updateTrains() {
+  Object.values(trainMarkers).forEach(m => map.removeLayer(m));
+  trainMarkers = {};
+
+  let activeCount = 0;
+  const t = currentMinutes;
+  const zoom = map.getZoom();
+  // Scale dot size with zoom: small at overview, bigger when zoomed in
+  const dotRadius = Math.max(3, Math.min(7, zoom - 3));
+
+  routes.forEach((route, ri) => {
+    const stops = route.stops;
+    if (stops.length < 2) return;
+    if (t < stops[0].time_min || t > stops[stops.length - 1].time_min) return;
+
+    // Find active segment
+    let segIdx = -1;
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i].time_min && t <= stops[i + 1].time_min) {
+        segIdx = i;
+        break;
+      }
+    }
+    if (segIdx === -1) return;
+
+    const from = stops[segIdx];
+    const to = stops[segIdx + 1];
+    const dur = to.time_min - from.time_min;
+    const progress = dur > 0 ? (t - from.time_min) / dur : 0;
+
+    // Interpolate along geometry if available
+    let lat, lon;
+    const geom = route.geometry;
+    const geomDists = routeGeomDists[ri];
+
+    if (geom && geomDists && geom[segIdx] && geom[segIdx].length >= 2) {
+      const pos = interpGeom(geom[segIdx], geomDists[segIdx], progress);
+      lat = pos[0]; lon = pos[1];
+    } else {
+      lat = from.lat + (to.lat - from.lat) * progress;
+      lon = from.lon + (to.lon - from.lon) * progress;
+    }
+
+    const marker = L.circleMarker([lat, lon], {
+      radius: dotRadius,
+      fillColor: '#fff',
+      fillOpacity: 0.95,
+      stroke: true,
+      color: '#e94560',
+      weight: 1.5,
+    }).addTo(map);
+    marker.bindTooltip(
+      `Train ${route.train_no}<br>${displayName(from.station)} → ${displayName(to.station)}`,
+      { direction: 'top', offset: [0, -8] }
+    );
+    marker.on('click', () => openTrainPanel(route));
+    trainMarkers[route.id] = marker;
+    activeCount++;
+  });
+
+  document.getElementById('stat-active').textContent = activeCount;
+}
+
+// ===================== PANELS =====================
+function openStationPanel(name) {
+  const panel = document.getElementById('station-panel');
+  const st = stations.find(s => s.name === name);
+
+  document.getElementById('sp-name').textContent = displayName(name) + ' 驛';
+  document.getElementById('sp-sub').textContent =
+    `${st ? st.region : ''} · ${st ? st.train_count : '?'} trains`;
+
+  const stopsHere = [];
+  routes.forEach(r => {
+    r.stops.forEach((s, i) => {
+      if (s.station === name) {
+        const next = i < r.stops.length - 1 ? r.stops[i + 1].station : '—';
+        stopsHere.push({
+          time_min: s.time_min,
+          time: formatTime(s.time_min),
+          train: r.train_no,
+          next: displayName(next),
+        });
+      }
+    });
+  });
+  stopsHere.sort((a, b) => a.time_min - b.time_min);
+
+  const tbody = document.getElementById('sp-tbody');
+  tbody.innerHTML = '';
+  stopsHere.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="color:#e94560;font-weight:bold">${s.time}</td><td>${s.train}</td><td style="color:#aaa">${s.next}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  panel.style.display = 'block';
+  if (st) map.panTo([st.lat, st.lon]);
+}
+function closeStationPanel() { document.getElementById('station-panel').style.display = 'none'; }
+
+function openTrainPanel(route) {
+  const panel = document.getElementById('train-panel');
+  document.getElementById('tp-title').textContent = `Train ${route.train_no}`;
+
+  const container = document.getElementById('tp-stops');
+  container.innerHTML = '';
+  route.stops.forEach(s => {
+    const isActive = Math.abs(currentMinutes - s.time_min) <= 2;
+    const div = document.createElement('div');
+    div.className = 'train-stop' + (isActive ? ' active' : '');
+    div.innerHTML = `<span class="ts-time">${formatTime(s.time_min)}</span><span class="ts-station">${displayName(s.station)}</span>`;
+    div.addEventListener('click', () => { map.panTo([s.lat, s.lon]); openStationPanel(s.station); });
+    container.appendChild(div);
+  });
+  panel.style.display = 'block';
+}
+function closeTrainPanel() { document.getElementById('train-panel').style.display = 'none'; }
+
+// ===================== SEARCH =====================
+function onSearch(query) {
+  const box = document.getElementById('search-results');
+  if (!query) { box.style.display = 'none'; return; }
+  const matches = stations.filter(s => matchStation(s, query)).slice(0, 15);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.innerHTML = '';
+  matches.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'search-item';
+    div.textContent = displayName(s.name);
+    div.addEventListener('click', () => {
+      document.getElementById('search-input').value = s.name;
+      box.style.display = 'none';
+      map.setView([s.lat, s.lon], 9);
+      openStationPanel(s.name);
+    });
+    box.appendChild(div);
+  });
+  box.style.display = 'block';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-box')) document.getElementById('search-results').style.display = 'none';
+});
+
+// ===================== TRIP PLANNER =====================
+
+// Build index: for each station, list of {routeIdx, stopIdx, time_min, train_no}
+let stationDepartures = {}; // station -> [{routeIdx, stopIdx, time_min, train_no, nextStops: [{station, time_min, stopIdx}]}]
+
+function buildTripIndex() {
+  stationDepartures = {};
+  routes.forEach((route, ri) => {
+    const stops = route.stops;
+    for (let i = 0; i < stops.length - 1; i++) {
+      const stn = stops[i].station;
+      if (!stationDepartures[stn]) stationDepartures[stn] = [];
+      // Collect all subsequent stops on this train
+      const nextStops = [];
+      for (let j = i + 1; j < stops.length; j++) {
+        if (stops[j].time_min > stops[i].time_min) {
+          nextStops.push({
+            station: stops[j].station,
+            time_min: stops[j].time_min,
+            stopIdx: j,
+          });
+        } else {
+          break; // Time went backwards, stop
+        }
+      }
+      if (nextStops.length > 0) {
+        stationDepartures[stn].push({
+          routeIdx: ri,
+          stopIdx: i,
+          time_min: stops[i].time_min,
+          train_no: route.train_no,
+          routeId: route.id,
+          nextStops,
+        });
+      }
+    }
+  });
+  // Sort departures by time at each station
+  for (const stn of Object.keys(stationDepartures)) {
+    stationDepartures[stn].sort((a, b) => a.time_min - b.time_min);
+  }
+}
+
+// Resolve an input element to a Chinese station name
+function resolveStationName(inputEl) {
+  // 1. Check data-station attribute (set by autocomplete selection)
+  const ds = inputEl.dataset.station;
+  if (ds && stationDepartures[ds] !== undefined) return ds;
+
+  const val = inputEl.value.trim();
+  if (!val) return null;
+
+  // 2. Direct Chinese name match
+  if (stations.some(s => s.name === val)) return val;
+
+  // 3. "Chinese (English)" format — extract Chinese part
+  const parenMatch = val.match(/^(.+?)\s*\(/);
+  if (parenMatch && stations.some(s => s.name === parenMatch[1])) return parenMatch[1];
+
+  // 4. English name match (case-insensitive)
+  const cn = ENGLISH_TO_CHINESE[val.toLowerCase()];
+  if (cn) return cn;
+
+  // 5. Partial English match — find best
+  const q = val.toLowerCase();
+  for (const [en, cnName] of Object.entries(ENGLISH_TO_CHINESE)) {
+    if (en.startsWith(q)) return cnName;
+  }
+
+  return null;
+}
+
+function toggleTripPanel() {
+  const panel = document.getElementById('trip-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+function closeTripPanel() {
+  document.getElementById('trip-panel').style.display = 'none';
+}
+
+function tripAutocomplete(field, query) {
+  const box = document.getElementById('trip-ac-' + field);
+  if (!query || query.length < 1) { box.style.display = 'none'; return; }
+  const matches = stations.filter(s => s.train_count > 0 && matchStation(s, query)).slice(0, 12);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.innerHTML = '';
+  matches.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'ta-item';
+    div.textContent = displayName(s.name);
+    div.addEventListener('click', () => {
+      document.getElementById('trip-' + field).value = displayName(s.name);
+      document.getElementById('trip-' + field).dataset.station = s.name;
+      box.style.display = 'none';
+    });
+    box.appendChild(div);
+  });
+  box.style.display = 'block';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#trip-panel')) {
+    document.getElementById('trip-ac-from').style.display = 'none';
+    document.getElementById('trip-ac-to').style.display = 'none';
+  }
+});
+
+const MIN_TRANSFER_TIME = 10; // minutes minimum transfer at a station
+const MAX_TRANSFERS = 4;
+
+function findTrip() {
+  const fromInput = document.getElementById('trip-from');
+  const toInput = document.getElementById('trip-to');
+  const departInput = document.getElementById('trip-depart').value;
+  const resultsDiv = document.getElementById('trip-results');
+
+  // Resolve station names: prefer data-station attribute (set by autocomplete click),
+  // otherwise try to parse the input (Chinese, English, or "Chinese (English)" format)
+  const fromStation = resolveStationName(fromInput);
+  const toStation = resolveStationName(toInput);
+
+  if (!fromStation || !toStation) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">Please select valid stations from the suggestions</div>';
+    return;
+  }
+  if (fromStation === toStation) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">Origin and destination are the same</div>';
+    return;
+  }
+  if (!stationDepartures[fromStation]) {
+    resultsDiv.innerHTML = '<div class="trip-no-result">No departures from ' + displayName(fromStation) + '</div>';
+    return;
+  }
+
+  const [hh, mm] = departInput.split(':').map(Number);
+  const departAfter = hh * 60 + mm;
+
+  resultsDiv.innerHTML = '<div class="trip-no-result">Searching...</div>';
+
+  // Use setTimeout to let the UI update
+  setTimeout(() => {
+    const itineraries = dijkstraTrip(fromStation, toStation, departAfter);
+    renderTripResults(itineraries, fromStation, toStation, resultsDiv);
+  }, 10);
+}
+
+// Dijkstra-like search: state = (station, time), find earliest arrivals at destination
+// Each edge = riding a train from station A to a later stop on the same train
+function dijkstraTrip(from, to, departAfter) {
+  // State: {station, time, legs: [{train_no, routeId, from, fromTime, to, toTime}]}
+  // Priority queue by arrival time
+  // best[station] = earliest arrival time we've found
+  const best = {};
+  best[from] = departAfter;
+
+  // PQ: simple array sorted by time (small graph, fine for this)
+  const pq = []; // {station, time, legs, transfers}
+  pq.push({ station: from, time: departAfter, legs: [], transfers: 0 });
+
+  const results = [];
+  const MAX_RESULTS = 3;
+  let iterations = 0;
+  const MAX_ITER = 50000;
+
+  while (pq.length > 0 && iterations < MAX_ITER) {
+    iterations++;
+    // Pop the state with smallest time
+    let bestIdx = 0;
+    for (let i = 1; i < pq.length; i++) {
+      if (pq[i].time < pq[bestIdx].time) bestIdx = i;
+    }
+    const state = pq.splice(bestIdx, 1)[0];
+
+    // Skip if we've already found a better path to this station
+    if (state.time > (best[state.station] || Infinity) + MIN_TRANSFER_TIME && state.station !== from) continue;
+
+    // Check if we've reached destination
+    if (state.station === to) {
+      results.push(state);
+      if (results.length >= MAX_RESULTS) break;
+      continue;
+    }
+
+    // Too many transfers
+    if (state.transfers > MAX_TRANSFERS) continue;
+    // Don't search past midnight
+    if (state.time > 1439) continue;
+
+    const departures = stationDepartures[state.station];
+    if (!departures) continue;
+
+    // Find all trains departing from this station at or after our arrival + transfer time
+    const minDepart = state.station === from && state.legs.length === 0
+      ? state.time  // No transfer time needed at origin
+      : state.time + MIN_TRANSFER_TIME;
+
+    // Binary search for first departure >= minDepart
+    let lo = 0, hi = departures.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (departures[mid].time_min < minDepart) lo = mid + 1; else hi = mid;
+    }
+
+    // Track which routeIds we've already tried from this state to avoid duplicates
+    const triedRoutes = new Set();
+
+    for (let di = lo; di < departures.length; di++) {
+      const dep = departures[di];
+
+      // Don't board the same train we just got off of
+      if (state.legs.length > 0) {
+        const lastLeg = state.legs[state.legs.length - 1];
+        if (dep.routeId === lastLeg.routeId) continue;
+      }
+
+      // Skip duplicate routes
+      if (triedRoutes.has(dep.routeId)) continue;
+      triedRoutes.add(dep.routeId);
+
+      // Try getting off at each subsequent stop
+      for (const ns of dep.nextStops) {
+        const arrivalTime = ns.time_min;
+
+        // Only bother if this improves best known arrival at that station
+        if (arrivalTime >= (best[ns.station] || Infinity) + MIN_TRANSFER_TIME) continue;
+
+        // Direct to destination: always consider
+        // Intermediate: check if it improves
+        if (arrivalTime < (best[ns.station] || Infinity) || ns.station === to) {
+          if (ns.station !== to) best[ns.station] = arrivalTime;
+
+          const newLeg = {
+            train_no: dep.train_no,
+            routeId: dep.routeId,
+            from: state.station,
+            fromTime: dep.time_min,
+            to: ns.station,
+            toTime: arrivalTime,
+          };
+
+          pq.push({
+            station: ns.station,
+            time: arrivalTime,
+            legs: [...state.legs, newLeg],
+            transfers: state.transfers + (state.legs.length > 0 ? 1 : 0),
+          });
+        }
+      }
+    }
+  }
+
+  // Deduplicate: keep distinct itineraries (different train sequences)
+  const seen = new Set();
+  const unique = [];
+  for (const r of results) {
+    const key = r.legs.map(l => l.routeId + ':' + l.from + '-' + l.to).join('|');
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(r);
+    }
+  }
+  return unique;
+}
+
+function renderTripResults(itineraries, from, to, container) {
+  if (itineraries.length === 0) {
+    container.innerHTML = '<div class="trip-no-result">No route found from ' + displayName(from) + ' to ' + displayName(to) + '<br><span style="font-size:0.75rem;color:#666">Try a different departure time or nearby stations</span></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  itineraries.forEach((itin, idx) => {
+    const totalTime = itin.time - itin.legs[0].fromTime;
+    const div = document.createElement('div');
+    div.className = 'trip-itinerary';
+
+    let header = `<div class="ti-header">
+      <span>Option ${idx + 1} · ${itin.legs.length === 1 ? 'Direct' : (itin.legs.length - 1) + ' transfer' + (itin.legs.length > 2 ? 's' : '')}</span>
+      <span class="ti-dur">${Math.floor(totalTime / 60)}h ${totalTime % 60}m</span>
+    </div>`;
+
+    let body = '';
+    itin.legs.forEach((leg, li) => {
+      if (li > 0) {
+        const waitTime = leg.fromTime - itin.legs[li - 1].toTime;
+        body += `<div class="trip-transfer">Transfer at ${displayName(leg.from)} · wait ${waitTime} min</div>`;
+      }
+      body += `<div class="trip-leg">
+        <div class="trip-leg-line"></div>
+        <div class="trip-leg-info">
+          <div class="trip-leg-train">Train ${leg.train_no}</div>
+          <div><span class="trip-leg-time">${formatTime(leg.fromTime)}</span> <span class="trip-leg-station">${displayName(leg.from)}</span></div>
+          <div><span class="trip-leg-time">${formatTime(leg.toTime)}</span> <span class="trip-leg-station">${displayName(leg.to)}</span></div>
+        </div>
+      </div>`;
+    });
+
+    div.innerHTML = header + body;
+    container.appendChild(div);
+  });
+}
+
+// ===================== LODGING & ACTIVITIES DATA =====================
+
+const cityLodgingData = {
+  '大連': {
+    displayName: 'Dalian (Dairen) — 大連',
+    lat: 38.9130495, lon: 121.6098013,
+    lodging: [
+      {
+        name: 'Dairen Yamato Hotel',
+        jp: '大連ヤマトホテル',
+        details: 'Approx. 5 minutes from Dairen Station. Modern facilities with both Western and Japanese-style rooms.',
+        price: 'Room rates: ¥3.00 – ¥15.00'
+      },
+      {
+        name: 'Technical Association Hotel',
+        jp: '技術會館ホテル',
+        details: 'In Higashikoen-cho (in front of Mantetsu Head Office). Western and Japanese dining, billiards hall, barber shop.',
+        price: 'Rooms from ¥2.80 · Meals from ¥1.50'
+      }
+    ],
+    activities: [
+      { name: 'Liaodong Department Store', jp: '遼東百貨店', details: 'Located in Naniwa-cho, Dairen.' },
+      { name: 'Lucky Bar', jp: 'ラッキーバー', details: 'Located in the Rensa-gai district.' },
+      { name: 'Naniwa Sushi', jp: '浪花壽司', details: 'Located in Iwaki-cho, Dairen.' },
+      { name: 'Miyagemonoya Gift Shop', jp: 'みやげものや', details: 'Located on Nishi-dori, Dairen.' },
+      { name: 'Ueno Special Store', jp: 'ウエノ', details: 'Located in Tokiwa-cho, Dairen.' },
+      { name: 'Awa Kuni Kyodo Kisen', jp: '阿波國共同汽船', details: 'Shipping & Ferries. Scheduled lines to Tianjin, Incheon, and Antung.' }
+    ]
+  },
+  '奉天': {
+    displayName: 'Fengtian (Mukden) — 奉天',
+    lat: 41.7924481, lon: 123.3879307,
+    lodging: [
+      {
+        name: 'O-BIRU Hotel, Mukden',
+        jp: 'ホービル・ホテル',
+        details: 'Sumiyoshi-cho, center of Fengtian Ginza. 5-min walk from Fengtian Station. "Manchuria\'s greatest hotel" — grill, banquet halls, wedding venue, billiard room, rooftop garden. Porter service to station.',
+        price: 'Room rates: ¥4.00 – ¥20.00'
+      },
+      {
+        name: 'Manchuria Hotel',
+        jp: '満洲ホテル',
+        details: 'In front of Fengtian Station.',
+        price: null
+      }
+    ],
+    activities: [
+      { name: 'Inu / Seichō', jp: 'い ぬ / 青 鳥', details: 'Located on "Fengtian Ginza."' },
+      { name: 'Kasuga Grand Dining Hall', jp: '春日大食堂', details: 'Located on "Fengtian Ginza."' },
+      { name: 'International Tourism Grand Salon', jp: '国際観光 グランド・サロン', details: 'Social venue. Fengtian phone number listed.' },
+      { name: 'Manmo Department Store', jp: '満毛百貨店', details: 'Serving the Fengtian area.' },
+      { name: 'Kawamura Shoes', jp: '河村製靴店', details: 'Located on "Fengtian Ginza."' },
+      { name: 'Manchuria Grill', jp: '満洲グリル', details: 'Located near the Manchuria Hotel.' }
+    ]
+  },
+  '新京': {
+    displayName: 'Shinkyo (Hsinking) — 新京',
+    lat: 43.9088384, lon: 125.3177297,
+    lodging: [
+      {
+        name: 'Taiyo Hotel',
+        jp: '太陽ホテル',
+        details: 'Eiraku-cho 1-chome. Center of the capital near the station.',
+        price: 'Room rates: ¥3.50 – ¥7.50'
+      }
+    ],
+    activities: [
+      { name: 'Miss Toyo — Grand Cabaret', jp: 'ミス東洋', details: 'Grand social venue in the Nan-keijo district of Shinkyo.' },
+      { name: 'Mitsunaka Department Store', jp: '三中井', details: 'On Daido Avenue. Primary stop for travel goods and souvenirs.' }
+    ]
+  },
+  '哈爾濱': {
+    displayName: 'Harbin — 哈爾濱',
+    lat: 45.7593633, lon: 126.6276177,
+    lodging: [
+      {
+        name: 'Nagoya Hotel',
+        jp: '名古屋ホテル',
+        details: 'Mostovaya Street. Designated hotel for South Manchuria Railway.',
+        price: 'Rooms from ¥3.00 · Meals from ¥0.50'
+      }
+    ],
+    activities: [
+      { name: 'Florida Dance Hall', jp: 'フロリダ・ダンスホール', details: 'A popular entertainment hall in Harbin.' },
+      { name: 'Salon Salvador', jp: 'サロン・サルバドル', details: 'A café and social spot in Harbin.' }
+    ]
+  },
+  '北京': {
+    displayName: 'Beijing — 北京',
+    lat: 39.9057136, lon: 116.3912972,
+    lodging: [
+      {
+        name: 'Showa Hotel',
+        jp: '昭和ホテル',
+        details: 'East Shinnan-gai. Recommended by Japan Tourist Bureau.',
+        price: 'From ¥5.00 (includes two meals)'
+      },
+      {
+        name: 'Nihon Hotel',
+        jp: '日華ホテル',
+        details: 'Toyo Yoko-ko 37. Coupon designated hotel.',
+        price: null
+      },
+      {
+        name: 'Miyako Hotel',
+        jp: '都ホテル',
+        details: 'Higashijo-monbun-mon-gai. Recommended for sightseeing.',
+        price: null
+      },
+      {
+        name: 'Takashima Hotel',
+        jp: '高島ホテル',
+        details: 'East Shinnan-gai (Tane-kodo). Features an elegant atmosphere.',
+        price: null
+      }
+    ],
+    activities: [
+      { name: 'Wangfu Grill', jp: '王府グリル', details: 'High-class tea room and grill offering light meals, near the famous Wangfujing shopping district.' }
+    ]
+  },
+  '天津': {
+    displayName: 'Tianjin — 天津',
+    lat: 39.3032619, lon: 117.4163641,
+    lodging: [
+      {
+        name: 'Fuyo Hotel',
+        jp: '芙蓉ホテル',
+        details: 'Near the station. Known as a first-class accommodation in Tianjin.',
+        price: null
+      }
+    ],
+    activities: []
+  }
+};
+
+let lodgingMarkers = {};
+
+function drawLodgingIcons() {
+  Object.values(lodgingMarkers).forEach(m => map.removeLayer(m));
+  lodgingMarkers = {};
+
+  for (const [stationName, city] of Object.entries(cityLodgingData)) {
+    const icon = L.divIcon({
+      className: '',
+      html: '<div class="lodging-map-icon">🏨</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+    const marker = L.marker([city.lat, city.lon], { icon, zIndexOffset: 1000 }).addTo(map);
+    marker.bindTooltip(city.displayName + ' — Lodging & Activities', { direction: 'top', offset: [0, -16] });
+    marker.on('click', () => openLodgingPanel(stationName));
+    lodgingMarkers[stationName] = marker;
+  }
+}
+
+function openLodgingPanel(stationName) {
+  const city = cityLodgingData[stationName];
+  if (!city) return;
+
+  // Close the station panel if open
+  closeStationPanel();
+
+  const panel = document.getElementById('lodging-panel');
+  document.getElementById('lodging-city-name').textContent = city.displayName;
+
+  const content = document.getElementById('lodging-content');
+  let html = '';
+
+  // Lodging section
+  if (city.lodging.length > 0) {
+    html += '<div class="lodging-section lodging">';
+    html += '<div class="lodging-section-header">Lodging</div>';
+    city.lodging.forEach(h => {
+      html += '<div class="lodging-card">';
+      html += `<div class="lodging-card-name">${h.name}</div>`;
+      html += `<div class="lodging-card-jp">${h.jp}</div>`;
+      html += `<div class="lodging-card-detail">${h.details}</div>`;
+      if (h.price) html += `<span class="lodging-card-price">${h.price}</span>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Activities section
+  if (city.activities.length > 0) {
+    html += '<div class="lodging-section activities">';
+    html += '<div class="lodging-section-header">Entertainment & Activities</div>';
+    city.activities.forEach(a => {
+      html += '<div class="lodging-card">';
+      html += `<div class="lodging-card-name">${a.name}</div>`;
+      html += `<div class="lodging-card-jp">${a.jp}</div>`;
+      html += `<div class="lodging-card-detail">${a.details}</div>`;
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+  panel.style.display = 'block';
+  map.panTo([city.lat, city.lon]);
+}
+
+function closeLodgingPanel() {
+  document.getElementById('lodging-panel').style.display = 'none';
+}
+
+init();
+</script>
+</body>
+</html>
