@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>滿洲騎車表 — 1940 Manchuria Railway Tracker</title>
+<title>滿洲支那汽車時間表 — 1940 Manchuria Railway Tracker</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -29,7 +29,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   font-size:1.5rem; font-weight:bold; color:#111;
   min-width:100px; text-align:center;
 }
-#time-slider { width:300px; accent-color:#e94560; cursor:pointer; }
+#time-slider { width:300px; accent-color:#111; cursor:pointer; }
 .ctrl-btn {
   background:#111; color:white; border:none; padding:6px 14px;
   border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
@@ -246,7 +246,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <body>
 
 <div id="topbar">
-  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect width="600" height="100" fill="#CE1126"/><rect y="100" width="600" height="100" fill="#3A75C4"/><rect y="200" width="600" height="100" fill="#fff"/><rect y="300" width="600" height="100" fill="#111"/></svg>滿洲汽車表<span> 1940 Railway Tracker</span></h1>
+  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect width="600" height="100" fill="#CE1126"/><rect y="100" width="600" height="100" fill="#3A75C4"/><rect y="200" width="600" height="100" fill="#fff"/><rect y="300" width="600" height="100" fill="#111"/></svg>滿洲支那汽車時間表<span> 1940 Railway Tracker</span></h1>
   <div id="time-controls">
     <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">&#9654; Play</button>
     <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">1x</span></button>
@@ -257,7 +257,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
     <input type="text" id="search-input" placeholder="Search station..." oninput="onSearch(this.value)">
     <div id="search-results"></div>
   </div>
-  <button id="topbar-trip-btn" onclick="toggleTripPanel()">🚂 Plan Your Trip</button>
+  <button id="topbar-trip-btn" onclick="toggleTripPanel()"> Plan Your Trip Today</button>
 </div>
 
 <!-- <div id="statsbar">

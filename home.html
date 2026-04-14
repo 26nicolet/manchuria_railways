@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>滿洲支那汽車時間表 — Home</title>
+  <style>
+    body {
+      background: #1a1a2e;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    #overlay-text {
+      position: absolute;
+      top: 40%;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 2.5rem;
+      font-family: 'Noto Serif JP', 'Georgia', serif;
+      color: #e94560;
+      font-weight: bold;
+      letter-spacing: 0.2em;
+      text-shadow: 2px 2px 8px #000, 0 0 10px #fff2;
+      z-index: 2;
+      pointer-events: none;
+      transition: opacity 1s;
+    }
+    #main-video {
+      max-width: 90vw;
+      max-height: 70vh;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px #000a;
+      z-index: 1;
+      background: #000;
+      transition: opacity 1s;
+    }
+    #enter-btn {
+      display: none;
+      margin-top: 40px;
+      font-size: 1.2rem;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 32px;
+      cursor: pointer;
+      font-family: 'Georgia', serif;
+      font-weight: bold;
+      box-shadow: 0 2px 8px #0005;
+      transition: background 0.2s;
+      letter-spacing: 0.05em;
+    }
+    #enter-btn:hover { background: #333; }
+    .fade-out { opacity: 0 !important; pointer-events: none; }
+    .fade-in { opacity: 1 !important; }
+  </style>
+</head>
+<body>
+  <div id="overlay-text">滿洲支那汽車時間表</div>
+  <video id="main-video" src="Generate_Moving_Train_GIF_From_Screenshot.mp4" autoplay muted playsinline></video>
+  <button id="enter-btn">Enter the Map</button>
+  <script>
+    const video = document.getElementById('main-video');
+    const overlay = document.getElementById('overlay-text');
+    const btn = document.getElementById('enter-btn');
+    let lastFrameCanvas = null;
+    video.addEventListener('ended', () => {
+      // Freeze last frame
+      lastFrameCanvas = document.createElement('canvas');
+      lastFrameCanvas.width = video.videoWidth;
+      lastFrameCanvas.height = video.videoHeight;
+      lastFrameCanvas.style.maxWidth = '90vw';
+      lastFrameCanvas.style.maxHeight = '70vh';
+      lastFrameCanvas.style.borderRadius = '16px';
+      lastFrameCanvas.style.boxShadow = '0 4px 32px #000a';
+      lastFrameCanvas.style.background = '#000';
+      const ctx = lastFrameCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+      video.parentNode.insertBefore(lastFrameCanvas, video);
+      video.classList.add('fade-out');
+      overlay.classList.add('fade-out');
+      setTimeout(() => {
+        video.style.display = 'none';
+        btn.style.display = 'block';
+        btn.classList.add('fade-in');
+      }, 1200);
+    });
+    btn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>
