@@ -22,11 +22,11 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 }
 #topbar h1 { font-size: 1.3rem; color:#111; letter-spacing:2px; display:flex; align-items:center; gap:10px; }
 #topbar h1 span { color:#333; font-weight:300; font-size:0.8rem; margin-left:10px; }
-.manchukuo-flag { height:28px; width:auto; border:1px solid #ccc; }
+.manchukuo-flag { height:28px; width:50px; border:1px solid #ccc; }
 
 #time-controls { display:flex; align-items:center; gap:12px; }
 #time-display {
-  font-size:2rem; font-weight:bold; color:#111;
+  font-size:1.5rem; font-weight:bold; color:#111;
   min-width:100px; text-align:center;
 }
 #time-slider { width:300px; accent-color:#e94560; cursor:pointer; }
@@ -260,9 +260,9 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <button id="topbar-trip-btn" onclick="toggleTripPanel()">🚂 Plan Your Trip</button>
 </div>
 
-<div id="statsbar">
+<!-- <div id="statsbar">
   <span>Active Trains: <span class="stat-val" id="stat-active">0</span></span>
-</div>
+</div> -->
 
 <div id="station-panel">
   <button class="close-btn" onclick="closeStationPanel()">&#10005;</button>
