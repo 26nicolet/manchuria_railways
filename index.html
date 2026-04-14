@@ -79,10 +79,20 @@
       transition: opacity 1s;
     }
     #fade-overlay.active { opacity: 1; }
+
+    #overlay-image {
+      position: fixed;   /* stays in place even when scrolling */
+      top: 20px;         /* adjust spacing from top */
+      left: 20px;        /* adjust spacing from left */
+      z-index: 2;        /* above video */
+      width: 150px;      /* control size */
+      height: auto;
+    }
   </style>
 </head>
 <body>
   <video id="main-video" src="Generate_Moving_Train_GIF_From_Screenshot.mp4" autoplay muted playsinline></video>
+  <img id="overlay-image" src="Naval_Ensign_of_Japan.svg" alt="">
   <div id="overlay-text">滿洲支那汽車時間表</div>
   <button id="enter-btn">Enter the Map</button>
   <div id="fade-overlay"></div>
