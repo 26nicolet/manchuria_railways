@@ -1067,6 +1067,7 @@ function renderTripResults(itineraries, from, to, container) {
 const cityLodgingData = {
   '大連': {
     displayName: 'Dalian (Dairen) — 大連',
+    drawing: null,
     lat: 38.9130495, lon: 121.6098013,
     lodging: [
       {
@@ -1093,6 +1094,7 @@ const cityLodgingData = {
   },
   '奉天': {
     displayName: 'Fengtian (Mukden) — 奉天',
+    drawing: 'station_drawings/Mukden.png',
     lat: 41.7924481, lon: 123.3879307,
     lodging: [
       {
@@ -1119,6 +1121,7 @@ const cityLodgingData = {
   },
   '新京': {
     displayName: 'Shinkyo (Hsinking) — 新京',
+    drawing: 'station_drawings/Hsinking.png',
     lat: 43.9088384, lon: 125.3177297,
     lodging: [
       {
@@ -1135,6 +1138,7 @@ const cityLodgingData = {
   },
   '哈爾濱': {
     displayName: 'Harbin — 哈爾濱',
+    drawing: 'station_drawings/Harbin.png',
     lat: 45.7593633, lon: 126.6276177,
     lodging: [
       {
@@ -1151,6 +1155,7 @@ const cityLodgingData = {
   },
   '北京': {
     displayName: 'Beijing — 北京',
+    drawing: null,
     lat: 39.9057136, lon: 116.3912972,
     lodging: [
       {
@@ -1184,6 +1189,7 @@ const cityLodgingData = {
   },
   '天津': {
     displayName: 'Tianjin — 天津',
+    drawing: null,
     lat: 39.3032619, lon: 117.4163641,
     lodging: [
       {
@@ -1229,6 +1235,11 @@ function openLodgingPanel(stationName) {
 
   const content = document.getElementById('lodging-content');
   let html = '';
+
+  // Station drawing
+  if (city.drawing) {
+    html += `<img src="${city.drawing}" alt="${city.displayName} station" style="width:100%;border-radius:8px;margin-bottom:12px;">`;
+  }
 
   // Lodging section
   if (city.lodging.length > 0) {
