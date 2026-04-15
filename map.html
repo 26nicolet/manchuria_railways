@@ -22,7 +22,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 }
 #topbar h1 { font-size: 1.3rem; color:#111; letter-spacing:2px; display:flex; align-items:center; gap:10px; }
 #topbar h1 span { color:#333; font-weight:300; font-size:0.8rem; margin-left:10px; }
-.manchukuo-flag { height:28px; width:50px; border:1px solid #ccc; }
+.manchukuo-flag { height:28px; width:50px; border:2px solid #333; }
+.leaflet-top.leaflet-left { top:60px; }
 
 #time-controls { display:flex; align-items:center; gap:12px; }
 #time-display {
@@ -172,10 +173,28 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 .trip-leg-info { flex:1; }
 .trip-leg-train { color:#53d769; font-weight:bold; font-size:0.75rem; }
 .trip-leg-time { color:#e94560; font-weight:bold; }
+
+/* Subway-style route map */
+.subway-map-container { margin-top:6px; cursor:pointer; }
+.subway-map-container .subway-toggle {
+  font-size:0.75rem; color:#e94560; cursor:pointer; margin-bottom:4px;
+  text-decoration:underline;
+}
+.subway-map-container .subway-toggle:hover { color:#fff; }
+.subway-map { overflow-x:auto; padding:4px 0; }
+.subway-map svg text { font-family:'Noto Serif JP','Georgia',serif; }
 .trip-leg-station { color:#e0d8c8; }
 .trip-transfer {
-  text-align:center; font-size:0.7rem; color:#888; padding:2px 0;
-  border-top:1px dashed #333; margin:4px 0;
+  /* text-align:center; font-size:0.7rem; color:#888; padding:2px 0;
+  border-top:1px dashed #333; margin:4px 0; */
+  display: flex;
+  justify-content: center;  /* horizontal */
+  align-items: center;      /* vertical */
+  font-size: 0.9rem;
+  color: #888;
+  padding: 4px 0;
+  border-top: 1px dashed #333;
+  margin: 4px 0;
 }
 
 /* ── Lodging & Activities Panel ── */
@@ -356,7 +375,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <body>
 
 <div id="topbar">
-  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect width="600" height="100" fill="#CE1126"/><rect y="100" width="600" height="100" fill="#3A75C4"/><rect y="200" width="600" height="100" fill="#fff"/><rect y="300" width="600" height="100" fill="#111"/></svg>滿洲汽車時間表<span> 1940 Railway Tracker</span></h1>
+  <h1><svg class="manchukuo-flag" viewBox="0 0 600 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#F5C518"/><rect x="0" y="0" width="200" height="67" fill="#CE1126"/><rect x="0" y="67" width="200" height="67" fill="#3A75C4"/><rect x="0" y="134" width="200" height="67" fill="#fff"/><rect x="0" y="201" width="200" height="67" fill="#111"/></svg>滿洲汽車時間表<span> 1940 Railway Tracker</span></h1>
   <div id="time-controls">
     <button class="ctrl-btn" id="btn-play" onclick="togglePlay()">&#9654; Play</button>
     <button class="ctrl-btn" onclick="changeSpeed()">Speed: <span id="speed-display">1x</span></button>
@@ -557,6 +576,9 @@ let trainMarkers = {};
 // routeGeomDists[routeIdx][segIdx] = [cumDist0, cumDist1, ...]
 let routeGeomDists = [];
 
+// Quick lookup: route.id -> route object
+let routeById = {};
+
 // ===================== INIT =====================
 async function init() {
   map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
@@ -574,6 +596,10 @@ async function init() {
 
   routes = routeData;
   stations = stationData;
+
+  // Build route lookup by id
+  routeById = {};
+  routes.forEach(r => { routeById[r.id] = r; });
 
   // Draw railway network background
   L.geoJSON(railwayData, {
@@ -698,7 +724,7 @@ function updateStationVisibility() {
       // Always show major
       if (!map.hasLayer(entry.visible)) { entry.visible.addTo(map); entry.hit.addTo(map); }
     } else {
-      if (zoom >= 8) {
+      if (zoom >= 7) {
         if (!map.hasLayer(entry.visible)) { entry.visible.addTo(map); entry.hit.addTo(map); }
         shown++;
       } else {
@@ -1198,6 +1224,111 @@ function dijkstraTrip(from, to, departAfter) {
   return unique;
 }
 
+function getIntermediateStops(leg) {
+  const route = routeById[leg.routeId];
+  if (!route) return [];
+  const stops = route.stops;
+  const result = [];
+  let inRange = false;
+  for (const s of stops) {
+    if (s.station === leg.from && s.time_min === leg.fromTime) { inRange = true; result.push(s); continue; }
+    if (inRange) {
+      result.push(s);
+      if (s.station === leg.to && s.time_min === leg.toTime) break;
+    }
+  }
+  return result;
+}
+
+// line colors for multi-leg trips
+const LEG_COLORS = ['#e94560', '#53d769', '#3A75C4', '#F5C518', '#ff6b35'];
+
+function buildSubwayMapSVG(itin) {
+  // Collect all stops across all legs
+  const segments = []; // {stops: [{station, time_min}], color, trainNo}
+  itin.legs.forEach((leg, li) => {
+    const stops = getIntermediateStops(leg);
+    segments.push({
+      stops,
+      color: LEG_COLORS[li % LEG_COLORS.length],
+      trainNo: leg.train_no,
+    });
+  });
+
+  const PADDING_TOP = 32;
+  const PADDING_BOTTOM = 12;
+  const LINE_X = 50;          // x position of the vertical line
+  const STOP_GAP = 28;        // vertical gap per stop
+  const TEXT_X = 68;           // x for station name
+  const TIME_X = LINE_X - 14; // x for time (right-aligned)
+  const TOTAL_W = 340;
+
+  // Count total nodes (stops + transfer gaps)
+  let totalNodes = 0;
+  segments.forEach((seg, si) => {
+    totalNodes += seg.stops.length;
+    if (si < segments.length - 1) totalNodes += 1; // transfer gap
+  });
+  const svgH = PADDING_TOP + totalNodes * STOP_GAP + PADDING_BOTTOM;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${TOTAL_W}" height="${svgH}" viewBox="0 0 ${TOTAL_W} ${svgH}">`;
+
+  let y = PADDING_TOP;
+
+  segments.forEach((seg, si) => {
+    const color = seg.color;
+
+    // Train label at top of segment
+    svg += `<text x="${TEXT_X}" y="${y - 14}" fill="${color}" font-size="9" font-weight="bold">Train ${seg.trainNo}</text>`;
+
+    seg.stops.forEach((stop, sti) => {
+      const isEndpoint = (sti === 0 || sti === seg.stops.length - 1);
+
+      // Draw line to next stop
+      if (sti < seg.stops.length - 1) {
+        svg += `<line x1="${LINE_X}" y1="${y}" x2="${LINE_X}" y2="${y + STOP_GAP}" stroke="${color}" stroke-width="4"/>`;
+      }
+
+      // Station circle
+      if (isEndpoint) {
+        // Boarding/alighting: larger filled circle with white ring
+        svg += `<circle cx="${LINE_X}" cy="${y}" r="6" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+      } else {
+        // Intermediate: small hollow circle
+        svg += `<circle cx="${LINE_X}" cy="${y}" r="4" fill="#16213e" stroke="${color}" stroke-width="2"/>`;
+      }
+
+      // Station name
+      const name = displayName(stop.station);
+      const nameWeight = isEndpoint ? 'bold' : 'normal';
+      const nameColor = isEndpoint ? '#fff' : '#aaa';
+      svg += `<text x="${TEXT_X}" y="${y + 4}" fill="${nameColor}" font-size="${isEndpoint ? 11 : 9.5}" font-weight="${nameWeight}">${escapeHtml(name)}</text>`;
+
+      // Time on the left
+      svg += `<text x="${TIME_X}" y="${y + 3}" fill="#888" font-size="8" text-anchor="end">${formatTime(stop.time_min)}</text>`;
+
+      y += STOP_GAP;
+    });
+
+    // Transfer gap between segments
+    if (si < segments.length - 1) {
+      const nextSeg = segments[si + 1];
+      const waitTime = nextSeg.stops[0].time_min - seg.stops[seg.stops.length - 1].time_min;
+      // Dashed line for transfer
+      svg += `<line x1="${LINE_X}" y1="${y - STOP_GAP}" x2="${LINE_X}" y2="${y}" stroke="#666" stroke-width="2" stroke-dasharray="4,4"/>`;
+      svg += `<text x="${TEXT_X}" y="${y - STOP_GAP / 2 + 4}" fill="#666" font-size="9" font-style="italic">Transfer · ${waitTime} min wait</text>`;
+      y += STOP_GAP;
+    }
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function renderTripResults(itineraries, from, to, container) {
   if (itineraries.length === 0) {
     container.innerHTML = '<div class="trip-no-result">No route found from ' + displayName(from) + ' to ' + displayName(to) + '<br><span style="font-size:0.75rem;color:#666">Try a different departure time or nearby stations</span></div>';
@@ -1215,23 +1346,22 @@ function renderTripResults(itineraries, from, to, container) {
       <span class="ti-dur">${Math.floor(totalTime / 60)}h ${totalTime % 60}m</span>
     </div>`;
 
-    let body = '';
+    // Quick summary line
+    let summary = `<div style="font-size:0.78rem;color:#ccc;margin-bottom:6px;">`;
     itin.legs.forEach((leg, li) => {
-      if (li > 0) {
-        const waitTime = leg.fromTime - itin.legs[li - 1].toTime;
-        body += `<div class="trip-transfer">Transfer at ${displayName(leg.from)} · wait ${waitTime} min</div>`;
-      }
-      body += `<div class="trip-leg">
-        <div class="trip-leg-line"></div>
-        <div class="trip-leg-info">
-          <div class="trip-leg-train">Train ${leg.train_no}</div>
-          <div><span class="trip-leg-time">${formatTime(leg.fromTime)}</span> <span class="trip-leg-station">${displayName(leg.from)}</span></div>
-          <div><span class="trip-leg-time">${formatTime(leg.toTime)}</span> <span class="trip-leg-station">${displayName(leg.to)}</span></div>
-        </div>
-      </div>`;
+      if (li > 0) summary += ' → ';
+      summary += `<span style="color:${LEG_COLORS[li % LEG_COLORS.length]}">Train ${leg.train_no}</span>`;
     });
+    summary += `<br>${displayName(from)} → ${displayName(to)}</div>`;
 
-    div.innerHTML = header + body;
+    // Subway map (collapsed by default)
+    const mapId = 'subway-map-' + idx;
+    const mapToggle = `<div class="subway-map-container">
+      <div class="subway-toggle" onclick="document.getElementById('${mapId}').style.display = document.getElementById('${mapId}').style.display === 'none' ? 'block' : 'none'">▶ View Route Map</div>
+      <div class="subway-map" id="${mapId}" style="display:none">${buildSubwayMapSVG(itin)}</div>
+    </div>`;
+
+    div.innerHTML = header + summary + mapToggle;
     container.appendChild(div);
   });
 }
