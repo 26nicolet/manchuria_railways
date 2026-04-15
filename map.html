@@ -113,6 +113,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 .legend-row { display:flex; align-items:center; gap:6px; margin:3px 0; color:#ccc; }
 .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
 
+.station-icon, .station-hit, .train-icon, .train-hit { background:none !important; border:none !important; }
+
 /* ── Trip Planner ── */
 #trip-btn { display:none; }
 
@@ -242,6 +244,31 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 }
 .lodging-map-icon:hover { transform:scale(1.2); }
 
+/* ── About the Data ── */
+#about-btn {
+  position:absolute; bottom:20px; right:12px; z-index:999;
+  background:#111; color:white; border:none; padding:6px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
+  font-family:inherit;
+}
+#about-btn:hover { background:#333; }
+#about-panel {
+  position:absolute; bottom:60px; right:12px; z-index:999;
+  background:rgba(22,33,62,0.97); border-radius:8px; padding:16px;
+  border:1px solid #e94560; width:380px; max-height:calc(100vh - 110px);
+  overflow-y:auto; display:none;
+}
+#about-panel h2 { color:#e94560; font-size:1.1rem; margin-bottom:10px; }
+#about-panel .close-btn {
+  position:absolute; top:8px; right:12px; cursor:pointer; color:#e94560;
+  font-size:1.2rem; background:none; border:none;
+}
+#about-panel p, #about-panel li { font-size:0.8rem; color:#ccc; line-height:1.5; }
+#about-panel ul { padding-left:16px; margin:6px 0; }
+#about-panel a { color:#e94560; }
+#about-panel .about-section { margin-bottom:12px; }
+#about-panel .about-section h3 { color:#aaa; font-size:0.8rem; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
+
 /* ── Mobile Responsive ── */
 /* Mobile backdrop: click to dismiss panels */
 #mobile-backdrop {
@@ -284,7 +311,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 
   #station-panel,
   #trip-panel,
-  #lodging-panel {
+  #lodging-panel,
+  #about-panel {
     left: 8px; right: 8px;
     width: auto;
     max-height: calc(100vh - 140px);
@@ -300,7 +328,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   #station-panel .close-btn,
   #train-panel .close-btn,
   #trip-panel .close-btn,
-  #lodging-panel .close-btn {
+  #lodging-panel .close-btn,
+  #about-panel .close-btn {
     font-size: 1.8rem;
     top: 6px; right: 10px;
     padding: 4px 10px;
@@ -364,9 +393,9 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <div id="legend">
   <h3>Legend</h3>
   <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#FFD700;width:6px;height:6px"></span> Major station (10+ trains)</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#4a90d9;width:6px;height:6px"></span> Station</div>
-  <div class="legend-row"><span class="legend-dot" style="background:#fff;border:2px solid #e94560;width:8px;height:8px"></span> Active train</div>
+  <div class="legend-row"><span style="display:inline-block;width:8px;height:8px;background:#e94560;border:1px solid #fff;"></span> Major station (top 10% train count)</div>
+  <div class="legend-row"><span style="display:inline-block;width:4px;height:4px;background:#e94560;"></span> Station</div>
+  <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#111;border-radius:50%;border:1.5px solid #555;text-align:center;line-height:10px;font-size:6px;color:#fff;">&#9654;</span> Active train</div>
   <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
 </div>
 
@@ -397,6 +426,39 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <button class="close-btn" onclick="closeLodgingPanel()">&#10005;</button>
   <h2 id="lodging-city-name"></h2>
   <div id="lodging-content"></div>
+</div>
+
+<button id="about-btn" onclick="toggleAboutPanel()">ℹ About the Data</button>
+
+<div id="about-panel">
+  <button class="close-btn" onclick="closeAboutPanel()">&#10005;</button>
+  <h2>About the Data</h2>
+  <div class="about-section">
+    <h3>Timetable Source</h3>
+    <p>Train schedules are extracted from a 1940 Japanese railway timetable (滿洲支那汽車時間表) published in Kyūjitai characters.</p>
+  </div>
+  <div class="about-section">
+    <h3>Railway Geometry</h3>
+    <p>Railway lines are derived from the <a href="https://data.humdata.org/dataset/hotosm_chn_railways" target="_blank">China Railways OSM</a> and <a href="https://data.humdata.org/dataset/hotosm_kor_railways" target="_blank">South Korea Railways OSM</a> datasets, exported via the <a href="https://github.com/hotosm/raw-data-api" target="_blank">HOT Raw Data API</a> on 2025-03-04.</p>
+    <ul>
+      <li><strong>manchuria_railways.geojson</strong> — Full Manchuria region rail network</li>
+      <li><strong>kr_railways.geojson</strong> — Korean peninsula rail network</li>
+      <li><strong>selected_railways.geojson</strong> — Manually curated subset (~96,000 features) used for route snapping</li>
+    </ul>
+    <p>North Korean railways, largely absent from OSM, were reconstructed from historical maps as 45 synthetic line segments across 6 routes.</p>
+  </div>
+  <div class="about-section">
+    <h3>Station Coordinates</h3>
+    <p>Station locations were geocoded via OSM Nominatim and manually verified/corrected against historical maps. ~600 stations are shown within the Manchuria bounding box.</p>
+  </div>
+  <div class="about-section">
+    <h3>Lodging &amp; Activities</h3>
+    <p>Hotel and entertainment data is extracted from advertisements and directories within the same 1940 timetable publication.</p>
+  </div>
+  <div class="about-section">
+    <h3>License</h3>
+    <p>OSM data: <a href="http://opendatacommons.org/licenses/odbl/1.0/" target="_blank">Open Database License (ODbL)</a>. Individual contents: <a href="http://opendatacommons.org/licenses/dbcl/1.0/" target="_blank">Database Contents License (DbCL)</a>.</p>
+  </div>
 </div>
 
 <div id="mobile-backdrop"></div>
@@ -530,7 +592,7 @@ async function init() {
   updateTrains();
 
   // Redraw trains on zoom so dot sizes update
-  map.on('zoomend', () => updateTrains());
+  map.on('zoomend', () => { updateTrains(); updateStationVisibility(); });
 }
 
 function precomputeGeomDists() {
@@ -576,25 +638,76 @@ function interpGeom(seg, dists, frac) {
 }
 
 function drawStations() {
-  Object.values(stationMarkers).forEach(m => map.removeLayer(m));
+  // Remove old markers
+  for (const entry of Object.values(stationMarkers)) {
+    if (entry.visible) { map.removeLayer(entry.visible); map.removeLayer(entry.hit); }
+    else map.removeLayer(entry);
+  }
   stationMarkers = {};
+
+  // Compute top 10% threshold
+  const activeCounts = stations.filter(s => s.train_count >= 1).map(s => s.train_count).sort((a, b) => b - a);
+  const majorThreshold = activeCounts[Math.floor(activeCounts.length * 0.10)] || 1;
 
   stations.forEach(s => {
     if (s.train_count < 1) return;
-    const isMajor = s.train_count >= 10;
-    const marker = L.circleMarker([s.lat, s.lon], {
-      radius: isMajor ? 4.5 : 3,
-      fillColor: isMajor ? '#FFD700' : '#4a90d9',
-      fillOpacity: isMajor ? 1.0 : 0.8,
-      stroke: true,
-      color: isMajor ? '#fff' : '#2c5f8a',
-      weight: isMajor ? 2 : 1,
+    const isMajor = s.train_count >= majorThreshold;
+
+    // Visible square marker
+    const sz = isMajor ? 12 : 8;
+    const border = isMajor ? 'border:3px solid #e94560;' : 'border:1px solid #fff;';
+    const bg = isMajor ? '#fff' : '#e94560';
+    const rotate = isMajor ? '' : 'transform:rotate(45deg);';
+    const html = `<div style="width:${sz}px;height:${sz}px;background:${bg};${border}${rotate}"></div>`;
+    const visible = L.marker([s.lat, s.lon], {
+      icon: L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [sz, sz],
+        iconAnchor: [sz / 2, sz / 2],
+      }),
+      interactive: false,
     }).addTo(map);
 
-    marker.on('click', () => openStationPanel(s.name));
-    marker.bindTooltip(displayName(s.name), { direction: 'top', offset: [0, -5] });
-    stationMarkers[s.name] = marker;
+    // Larger invisible hit area for easier clicking
+    const hit = L.marker([s.lat, s.lon], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:24px;height:24px;"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      }),
+      interactive: true,
+    }).addTo(map);
+
+    hit.on('click', () => openStationPanel(s.name));
+    hit.bindTooltip(displayName(s.name), { direction: 'top', offset: [0, -5] });
+
+    stationMarkers[s.name] = { visible, hit, isMajor };
   });
+
+  updateStationVisibility();
+}
+
+function updateStationVisibility() {
+  const zoom = map.getZoom();
+  console.log('updateStationVisibility zoom=' + zoom, 'stations=' + Object.keys(stationMarkers).length);
+  let shown = 0, hidden = 0;
+  for (const entry of Object.values(stationMarkers)) {
+    if (entry.isMajor) {
+      // Always show major
+      if (!map.hasLayer(entry.visible)) { entry.visible.addTo(map); entry.hit.addTo(map); }
+    } else {
+      if (zoom >= 8) {
+        if (!map.hasLayer(entry.visible)) { entry.visible.addTo(map); entry.hit.addTo(map); }
+        shown++;
+      } else {
+        if (map.hasLayer(entry.visible)) { map.removeLayer(entry.visible); map.removeLayer(entry.hit); }
+        hidden++;
+      }
+    }
+  }
+  console.log('minor shown=' + shown, 'hidden=' + hidden);
 }
 
 // ===================== TIME CONTROL =====================
@@ -639,14 +752,15 @@ function changeSpeed() {
 
 // ===================== TRAIN RENDERING =====================
 function updateTrains() {
-  Object.values(trainMarkers).forEach(m => map.removeLayer(m));
+  Object.values(trainMarkers).forEach(m => {
+    if (m.vis) { map.removeLayer(m.vis); map.removeLayer(m.hit); }
+    else map.removeLayer(m);
+  });
   trainMarkers = {};
 
   let activeCount = 0;
   const t = currentMinutes;
   const zoom = map.getZoom();
-  // Scale dot size with zoom: small at overview, bigger when zoomed in
-  const dotRadius = Math.max(3, Math.min(7, zoom - 3));
 
   routes.forEach((route, ri) => {
     const stops = route.stops;
@@ -681,24 +795,62 @@ function updateTrains() {
       lon = from.lon + (to.lon - from.lon) * progress;
     }
 
-    const marker = L.circleMarker([lat, lon], {
-      radius: dotRadius,
-      fillColor: '#fff',
-      fillOpacity: 0.95,
-      stroke: true,
-      color: '#e94560',
-      weight: 1.5,
-    }).addTo(map);
-    marker.bindTooltip(
+    // Compute heading for arrow
+    let heading = 0;
+    if (geom && geomDists && geom[segIdx] && geom[segIdx].length >= 2) {
+      // Use nearby geometry points for heading
+      const seg = geom[segIdx];
+      const dists = geomDists[segIdx];
+      const totalDist = dists[dists.length - 1];
+      const targetDist = progress * totalDist;
+      let lo2 = 0;
+      for (let k = 1; k < dists.length; k++) { if (dists[k] > targetDist) { lo2 = k - 1; break; } lo2 = k - 1; }
+      const hi2 = Math.min(lo2 + 1, seg.length - 1);
+      const dlat = seg[hi2][0] - seg[lo2][0];
+      const dlon = seg[hi2][1] - seg[lo2][1];
+      heading = Math.atan2(dlon, dlat) * 180 / Math.PI; // degrees from north
+    } else {
+      const dlat = to.lat - from.lat;
+      const dlon = to.lon - from.lon;
+      heading = Math.atan2(dlon, dlat) * 180 / Math.PI;
+    }
+
+    const dotSize = Math.max(8, Math.min(14, (zoom - 3) * 2));
+    const arrowSize = Math.round(dotSize * 0.7);
+    const iconHtml = `<div style="position:relative;width:${dotSize}px;height:${dotSize}px;">`
+      + `<div style="width:${dotSize}px;height:${dotSize}px;background:#111;border-radius:50%;border:1.5px solid #555;"></div>`
+      + `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(${-heading + 90}deg);color:#fff;font-size:${arrowSize}px;line-height:1;pointer-events:none;">&#9654;</div>`
+      + `</div>`;
+
+    const trainIcon = L.divIcon({
+      className: '',
+      html: iconHtml,
+      iconSize: [dotSize, dotSize],
+      iconAnchor: [dotSize / 2, dotSize / 2],
+    });
+
+    // Larger hit area
+    const hitSize = 24;
+    const hitIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:${hitSize}px;height:${hitSize}px;cursor:pointer;"></div>`,
+      iconSize: [hitSize, hitSize],
+      iconAnchor: [hitSize / 2, hitSize / 2],
+    });
+
+    const visMarker = L.marker([lat, lon], { icon: trainIcon, interactive: false, zIndexOffset: 500 }).addTo(map);
+    const hitMarker = L.marker([lat, lon], { icon: hitIcon, opacity: 0, zIndexOffset: 600 }).addTo(map);
+    hitMarker.bindTooltip(
       `Train ${route.train_no}<br>${displayName(from.station)} → ${displayName(to.station)}`,
       { direction: 'top', offset: [0, -8] }
     );
-    marker.on('click', () => openTrainPanel(route));
-    trainMarkers[route.id] = marker;
+    hitMarker.on('click', () => openTrainPanel(route));
+    trainMarkers[route.id] = { vis: visMarker, hit: hitMarker };
     activeCount++;
   });
 
-  document.getElementById('stat-active').textContent = activeCount;
+  const el = document.getElementById('stat-active');
+  if (el) el.textContent = activeCount;
 }
 
 // ===================== PANELS =====================
@@ -1302,11 +1454,22 @@ function closeLodgingPanel() {
   hideBackdrop();
 }
 
+function toggleAboutPanel() {
+  const panel = document.getElementById('about-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  checkShowBackdrop();
+}
+function closeAboutPanel() {
+  document.getElementById('about-panel').style.display = 'none';
+  hideBackdrop();
+}
+
 function closeAllPanels() {
   closeStationPanel();
   closeTrainPanel();
   closeTripPanel();
   closeLodgingPanel();
+  closeAboutPanel();
 }
 
 function showBackdrop() {
@@ -1323,7 +1486,7 @@ document.getElementById('mobile-backdrop').addEventListener('click', closeAllPan
 const _origStationDisplay = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'display');
 function checkShowBackdrop() {
   if (window.innerWidth > 768) return;
-  const panels = ['station-panel','train-panel','trip-panel','lodging-panel'];
+  const panels = ['station-panel','train-panel','trip-panel','lodging-panel','about-panel'];
   const anyOpen = panels.some(id => document.getElementById(id).style.display === 'block');
   if (anyOpen) showBackdrop(); else hideBackdrop();
 }
