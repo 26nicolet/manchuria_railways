@@ -541,18 +541,224 @@ for (const [cn, en] of Object.entries(STATION_ENGLISH)) {
   ENGLISH_TO_CHINESE[en.toLowerCase()] = cn;
 }
 
+// Modern pinyin aliases: Chinese name -> [modern names / pinyin romanizations]
+const MODERN_ALIASES = {
+  // Renamed cities
+  '新京': ['Xinjing', 'Changchun'],
+  '奉天': ['Fengtian', 'Shenyang', 'Mukden'],
+  '安東': ['Andong', 'Dandong'],
+  '旅順': ['Lushun', 'Port Arthur'],
+  '本溪湖': ['Benxihu', 'Benxi'],
+  '四平街': ['Sipingjie', 'Siping'],
+  '鄭家屯': ['Zhengjiatun', 'Shuangliao'],
+  '大賚': ['Dalai', 'Daan'],
+  '安廣': ['Anguang', 'Daan'],
+  '德縣': ['Dexian', 'Dezhou'],
+  '灤縣': ['Luanxian', 'Luanzhou'],
+  '鎮東': ['Zhendong', 'Zhenlai'],
+  // Korean stations
+  '京城': ['Jingcheng', 'Seoul', 'Gyeongseong'],
+  '仁川': ['Renchuan', 'Incheon'],
+  '水原': ['Shuiyuan', 'Suwon'],
+  '永登浦': ['Yongdengpu', 'Yeongdeungpo'],
+  '新安州': ['Xinanzhou', 'Sinanju'],
+  '黃州': ['Huangzhou', 'Hwangju'],
+  '羅津': ['Luojin', 'Rajin', 'Rason'],
+  // Major cities
+  '哈爾濱': ['Haerbin', 'Harbin'],
+  '大連': ['Dalian'],
+  '長春': ['Changchun'],
+  '吉林': ['Jilin'],
+  '齊齊哈爾': ['Qiqihar', 'Qiqihaer'],
+  '牡丹江': ['Mudanjiang'],
+  '佳木斯': ['Jiamusi'],
+  '四平': ['Siping'],
+  '鐵嶺': ['Tieling'],
+  '撫順': ['Fushun'],
+  '鞍山': ['Anshan'],
+  '營口': ['Yingkou'],
+  '錦州': ['Jinzhou'],
+  '通遼': ['Tongliao'],
+  '通化': ['Tonghua'],
+  '遼陽': ['Liaoyang'],
+  '遼源': ['Liaoyuan'],
+  '延吉': ['Yanji'],
+  '北京': ['Beijing'],
+  '天津': ['Tianjin'],
+  '唐山': ['Tangshan'],
+  '秦皇島': ['Qinhuangdao'],
+  '山海關': ['Shanhaiguan'],
+  '海拉爾': ['Hailaer', 'Hailar'],
+  '葫蘆島': ['Huludao'],
+  // Other stations
+  '一面坡': ['Yimianpo'],
+  '三家店': ['Sanjiadian'],
+  '三岔河': ['Sanchahe'],
+  '三棵樹': ['Sankeshu'],
+  '三源浦': ['Sanyuanpu'],
+  '三盛玉': ['Sanshengyu'],
+  '下城子': ['Xiachengzi'],
+  '九站': ['Jiuzhan'],
+  '九臺': ['Jiutai'],
+  '五龍背': ['Wulongbei'],
+  '免渡河': ['Mianduhe'],
+  '八面城': ['Bamiancheng'],
+  '公主嶺': ['Gongzhuling'],
+  '其塔木': ['Qitamu'],
+  '北安': ['Beian'],
+  '北戴河': ['Beidaihe'],
+  '千山': ['Qianshan'],
+  '南張村': ['Nanzhangcun'],
+  '南芬': ['Nanfen'],
+  '南關嶺': ['Nanguanling'],
+  '南雜木': ['Nanzamu'],
+  '博克圖': ['Boketu'],
+  '口前': ['Kouqian'],
+  '周家': ['Zhoujia'],
+  '周水子': ['Zhoushuizi'],
+  '呼蘭': ['Hulan'],
+  '圖們': ['Tumen'],
+  '城子街': ['Chengzijie'],
+  '塘沽': ['Tanggu'],
+  '大孤山': ['Dagushan'],
+  '大房身': ['Dafangshen'],
+  '大石橋': ['Dashiqiao'],
+  '大石頭': ['Dashitou'],
+  '大興': ['Daxing'],
+  '大虎山': ['Dahushan'],
+  '天橋嶺': ['Tianqiaoling'],
+  '太平川': ['Taipingchuan'],
+  '威虎嶺': ['Weihuling'],
+  '孟家屯': ['Mengjiatun'],
+  '孤店子': ['Gudianzi'],
+  '安圖': ['Antu'],
+  '安達': ['Anda'],
+  '富拉爾基': ['Fulaerji'],
+  '寧安': ['Ningan'],
+  '小嶺': ['Xiaoling'],
+  '山城鎭': ['Shanchengzhen'],
+  '岔路河': ['Chaluhe'],
+  '康平': ['Kangping'],
+  '廊坊': ['Langfang'],
+  '彰武': ['Zhangwu'],
+  '得利寺': ['Delisi'],
+  '德惠': ['Dehui'],
+  '扎蘭屯': ['Zhalantun'],
+  '拉林': ['Lalin'],
+  '敦化': ['Dunhua'],
+  '新民': ['Xinmin'],
+  '新立屯': ['Xinlitun'],
+  '新站': ['Xinzhan'],
+  '新臺子': ['Xintaizi'],
+  '昂昂溪': ['Angangxi'],
+  '昌圖': ['Changtu'],
+  '昌黎': ['Changli'],
+  '明月溝': ['Mingyuegou'],
+  '普蘭店': ['Pulandian'],
+  '朝陽川': ['Chaoyangchuan'],
+  '東京城': ['Dongjingcheng'],
+  '東寧': ['Dongning'],
+  '東豐': ['Dongfeng'],
+  '松花江': ['Songhuajiang', 'Songhua'],
+  '林口': ['Linkou'],
+  '林甸': ['Lindian'],
+  '柳河': ['Liuhe'],
+  '梅河口': ['Meihekou'],
+  '橫道河子': ['Hengdaohezi'],
+  '江橋': ['Jiangqiao'],
+  '沙崗': ['Shagang'],
+  '沙河口': ['Shahekou'],
+  '泰來': ['Tailai'],
+  '洮南': ['Taonan'],
+  '海倫': ['Hailun'],
+  '海城': ['Haicheng'],
+  '海林': ['Hailin'],
+  '海龍': ['Hailong'],
+  '渾河': ['Hunhe'],
+  '湯山城': ['Tangshancheng'],
+  '湯崗子': ['Tanggangzi'],
+  '溝幇子': ['Goubanzi'],
+  '溝幫子': ['Goubanzi'],
+  '烏吉密': ['Wujimi'],
+  '熊岳城': ['Xiongyuecheng'],
+  '牙克石': ['Yakeshi'],
+  '玉泉': ['Yuquan'],
+  '王府': ['Wangfu'],
+  '琉璃河': ['Liulihe'],
+  '琿春': ['Hunchun'],
+  '瓦房店': ['Wafangdian'],
+  '田莊臺': ['Tianzhuangtai'],
+  '盤山': ['Panshan'],
+  '石頭河子': ['Shitouhezi'],
+  '穆稜': ['Muling'],
+  '索倫': ['Suolun'],
+  '綏中': ['Suizhong'],
+  '綏化': ['Suihua'],
+  '綏芬河': ['Suifenhe'],
+  '綏陽': ['Suiyang'],
+  '老頭溝': ['Laotougou'],
+  '臨江': ['Linjiang'],
+  '興城': ['Xingcheng'],
+  '興安嶺': ['Xinganling'],
+  '舒蘭': ['Shulan'],
+  '范家屯': ['Fanjiatun'],
+  '草河口': ['Caohekou'],
+  '莊河': ['Zhuanghe'],
+  '葦河': ['Weihe'],
+  '蔡家溝': ['Caijiagou'],
+  '蘆臺': ['Lutai'],
+  '蘇家屯': ['Sujiatun'],
+  '虎石臺': ['Hushitai'],
+  '蛟河': ['Jiaohe'],
+  '西直門': ['Xizhimen'],
+  '訥河': ['Nehe'],
+  '軍糧城': ['Junliangcheng'],
+  '通遠堡': ['Tongyuanbu'],
+  '連山關': ['Lianshanguan'],
+  '郭家店': ['Guojiadian'],
+  '金州': ['Jinzhou'],
+  '長辛店': ['Changxindian'],
+  '開原': ['Kaiyuan'],
+  '開山屯': ['Kaishantun'],
+  '開通': ['Kaitong'],
+  '開魯': ['Kailu'],
+  '阿什河': ['Ashihe'],
+  '陶賴昭': ['Taolaizhao'],
+  '雙城堡': ['Shuangchengbao', 'Shuangcheng'],
+  '靠山屯': ['Kaoshantun'],
+  '額穆': ['Emu'],
+  '首山': ['Shoushan'],
+  '高碑店': ['Gaobeidian'],
+  '鴨園': ['Yayuan'],
+  '黃泥河': ['Huangnihe'],
+};
+
+// Build reverse index: lowercase alias -> Chinese name
+const ALIAS_TO_CHINESE = {};
+for (const [cn, aliases] of Object.entries(MODERN_ALIASES)) {
+  for (const a of aliases) {
+    ALIAS_TO_CHINESE[a.toLowerCase()] = cn;
+  }
+}
+
 // Display name: "Chinese (English)" for bilingual display
 function displayName(chineseName) {
   const en = STATION_ENGLISH[chineseName];
   return en ? chineseName + ' (' + en + ')' : chineseName;
 }
 
-// Match station by query (Chinese or English, case-insensitive)
+// Match station by query (Chinese, English, or modern pinyin, case-insensitive)
 function matchStation(station, query) {
   const q = query.toLowerCase();
   if (station.name.includes(query)) return true;
   const en = STATION_ENGLISH[station.name];
   if (en && en.toLowerCase().includes(q)) return true;
+  const aliases = MODERN_ALIASES[station.name];
+  if (aliases) {
+    for (const a of aliases) {
+      if (a.toLowerCase().includes(q)) return true;
+    }
+  }
   return false;
 }
 
@@ -1023,10 +1229,19 @@ function resolveStationName(inputEl) {
   const cn = ENGLISH_TO_CHINESE[val.toLowerCase()];
   if (cn) return cn;
 
-  // 5. Partial English match — find best
+  // 5. Modern pinyin alias match
+  const cnAlias = ALIAS_TO_CHINESE[val.toLowerCase()];
+  if (cnAlias) return cnAlias;
+
+  // 6. Partial English match — find best
   const q = val.toLowerCase();
   for (const [en, cnName] of Object.entries(ENGLISH_TO_CHINESE)) {
     if (en.startsWith(q)) return cnName;
+  }
+
+  // 7. Partial modern alias match
+  for (const [alias, cnName] of Object.entries(ALIAS_TO_CHINESE)) {
+    if (alias.startsWith(q)) return cnName;
   }
 
   return null;
