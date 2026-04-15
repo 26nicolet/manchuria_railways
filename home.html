@@ -3,33 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>滿洲汽車時間表 — Home</title>
+  <title>滿洲支那汽車時間表 — Home</title>
   <style>
-    html, body {
+    body {
+      background: #000;
       margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden; /* important */
+      height: 100vh;
+      overflow: hidden;
     }
-    /* #main-video {
+    #main-video {
       position: absolute;
-      top: 0; left: -25%;
-      width: 120%; height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       object-fit: cover;
       z-index: 1;
-    } */
-
-    #main-video {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 150vw;   /* increase until bars disappear */
-      height: 150vh;
-      transform: translate(-50%, -50%);
-      object-fit: cover;
-      z-index: -1;
     }
-
     #overlay-text {
       position: absolute;
       top: 50%; left: 50%;
@@ -84,21 +72,11 @@
       #overlay-text { font-size: 1.5rem; letter-spacing: 0.1em; }
       #enter-btn { font-size: 1rem; padding: 12px 24px; }
     }
-
-    #overlay-image {
-      position: fixed;   /* stays in place even when scrolling */
-      top: 20px;         /* adjust spacing from top */
-      left: 20px;        /* adjust spacing from left */
-      z-index: 2;        /* above video */
-      width: 150px;      /* control size */
-      height: auto;
-    }
   </style>
 </head>
 <body>
   <video id="main-video" src="Generate_Moving_Train_GIF_From_Screenshot.mp4" autoplay muted playsinline></video>
-  <!-- <img id="overlay-image" src="Naval_Ensign_of_Japan.svg" alt=""> -->
-  <div id="overlay-text">滿洲汽車時間表</div>
+  <div id="overlay-text">滿洲支那汽車時間表</div>
   <button id="enter-btn">Enter the Map</button>
   <div id="fade-overlay"></div>
   <script>

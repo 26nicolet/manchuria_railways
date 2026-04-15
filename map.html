@@ -241,6 +241,67 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   transition: transform 0.2s;
 }
 .lodging-map-icon:hover { transform:scale(1.2); }
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  #topbar {
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  #topbar h1 {
+    font-size: 1rem;
+    width: 100%;
+    justify-content: center;
+  }
+  #topbar h1 span { font-size: 0.65rem; margin-left: 6px; }
+  .manchukuo-flag { height: 22px; width: 40px; }
+
+  #time-controls {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #time-slider { width: 100%; max-width: 200px; }
+  #time-display { font-size: 1.1rem; min-width: 70px; }
+  .ctrl-btn { padding: 5px 10px; font-size: 0.8rem; }
+
+  #topbar-trip-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+
+  #station-panel,
+  #trip-panel,
+  #lodging-panel {
+    left: 8px; right: 8px;
+    width: auto;
+    max-height: calc(100vh - 140px);
+  }
+
+  #train-panel {
+    left: 8px; right: 8px;
+    width: auto;
+    bottom: 10px;
+  }
+
+  #legend {
+    bottom: 10px; left: 8px;
+    padding: 6px 10px;
+    font-size: 0.65rem;
+    max-width: 140px;
+  }
+  #legend h3 { font-size: 0.7rem; }
+}
+
+@media (max-width: 480px) {
+  #topbar h1 { font-size: 0.9rem; letter-spacing: 1px; }
+  #topbar h1 span { display: none; }
+  #time-display { font-size: 1rem; }
+  #time-slider { max-width: 150px; }
+  #legend { display: none; }
+}
 </style>
 </head>
 <body>
