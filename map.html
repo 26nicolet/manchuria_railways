@@ -243,6 +243,16 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 .lodging-map-icon:hover { transform:scale(1.2); }
 
 /* ── Mobile Responsive ── */
+/* Mobile backdrop: click to dismiss panels */
+#mobile-backdrop {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 998;
+  background: rgba(0,0,0,0.3);
+}
+
 @media (max-width: 768px) {
   #topbar {
     flex-wrap: wrap;
@@ -284,6 +294,16 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
     left: 8px; right: 8px;
     width: auto;
     bottom: 10px;
+  }
+
+  /* Bigger close buttons on mobile */
+  #station-panel .close-btn,
+  #train-panel .close-btn,
+  #trip-panel .close-btn,
+  #lodging-panel .close-btn {
+    font-size: 1.8rem;
+    top: 6px; right: 10px;
+    padding: 4px 10px;
   }
 
   #legend {
@@ -379,6 +399,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div id="lodging-content"></div>
 </div>
 
+<div id="mobile-backdrop"></div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -716,7 +737,7 @@ function openStationPanel(name) {
   panel.style.display = 'block';
   if (st) map.panTo([st.lat, st.lon]);
 }
-function closeStationPanel() { document.getElementById('station-panel').style.display = 'none'; }
+function closeStationPanel() { document.getElementById('station-panel').style.display = 'none'; hideBackdrop(); }
 
 function openTrainPanel(route) {
   const panel = document.getElementById('train-panel');
@@ -734,7 +755,7 @@ function openTrainPanel(route) {
   });
   panel.style.display = 'block';
 }
-function closeTrainPanel() { document.getElementById('train-panel').style.display = 'none'; }
+function closeTrainPanel() { document.getElementById('train-panel').style.display = 'none'; hideBackdrop(); }
 
 // ===================== SEARCH =====================
 function onSearch(query) {
@@ -839,6 +860,7 @@ function toggleTripPanel() {
 }
 function closeTripPanel() {
   document.getElementById('trip-panel').style.display = 'none';
+  hideBackdrop();
 }
 
 function tripAutocomplete(field, query) {
@@ -1277,7 +1299,44 @@ function openLodgingPanel(stationName) {
 
 function closeLodgingPanel() {
   document.getElementById('lodging-panel').style.display = 'none';
+  hideBackdrop();
 }
+
+function closeAllPanels() {
+  closeStationPanel();
+  closeTrainPanel();
+  closeTripPanel();
+  closeLodgingPanel();
+}
+
+function showBackdrop() {
+  document.getElementById('mobile-backdrop').style.display = 'block';
+}
+function hideBackdrop() {
+  document.getElementById('mobile-backdrop').style.display = 'none';
+}
+
+// Backdrop click closes all panels
+document.getElementById('mobile-backdrop').addEventListener('click', closeAllPanels);
+
+// Show backdrop when any panel opens (mobile only)
+const _origStationDisplay = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'display');
+function checkShowBackdrop() {
+  if (window.innerWidth > 768) return;
+  const panels = ['station-panel','train-panel','trip-panel','lodging-panel'];
+  const anyOpen = panels.some(id => document.getElementById(id).style.display === 'block');
+  if (anyOpen) showBackdrop(); else hideBackdrop();
+}
+
+// Patch panel open/close to manage backdrop
+const _openStationPanel = openStationPanel;
+openStationPanel = function(name) { _openStationPanel(name); checkShowBackdrop(); };
+const _openTrainPanel = openTrainPanel;
+openTrainPanel = function(route) { _openTrainPanel(route); checkShowBackdrop(); };
+const _origToggleTrip = toggleTripPanel;
+toggleTripPanel = function() { _origToggleTrip(); checkShowBackdrop(); };
+const _openLodgingPanel = openLodgingPanel;
+openLodgingPanel = function(s) { _openLodgingPanel(s); checkShowBackdrop(); };
 
 init();
 </script>

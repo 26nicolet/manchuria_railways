@@ -11,3 +11,4 @@ extracted_data/
 !results/all_stations.json
 !results/railway_network.json
 *.png
+!station_drawings/*.png
