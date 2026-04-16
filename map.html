@@ -412,8 +412,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <div id="legend">
   <h3>Legend</h3>
   <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
-  <div class="legend-row"><span style="display:inline-block;width:8px;height:8px;background:#e94560;border:1px solid #fff;"></span> Major station (top 10% train count)</div>
-  <div class="legend-row"><span style="display:inline-block;width:4px;height:4px;background:#e94560;"></span> Station</div>
+  <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#fff;border:3px solid #e94560;"></span> Major station (top 10%)</div>
+  <div class="legend-row"><span style="display:inline-block;width:7px;height:7px;background:#e94560;border:1px solid #fff;transform:rotate(45deg);"></span> Minor station</div>
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#111;border-radius:50%;border:1.5px solid #555;text-align:center;line-height:10px;font-size:6px;color:#fff;">&#9654;</span> Active train</div>
   <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
 </div>
@@ -454,7 +454,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <h2>About the Data</h2>
   <div class="about-section">
     <h3>Timetable Source</h3>
-    <p>Train schedules are extracted from a 1940 Japanese railway timetable (滿洲支那汽車時間表) published in Kyūjitai characters.</p>
+    <p>Train schedules are extracted from a 1940 Japanese railway timetable (滿洲支那汽車時間表) published in Kyūjitai characters. I'd like to thank my professor, Dr. Konrad Lawson, for providing me with the scans.</p>
   </div>
   <div class="about-section">
     <h3>Railway Geometry</h3>
@@ -533,7 +533,7 @@ const STATION_ENGLISH = {
   '開山屯':'Kaishantun','開通':'Kaitung','開魯':'Kailu','阿什河':'Ashiho',
   '陶賴昭':'Taolaichao','雙城堡':'Shuangchengpu','靠山屯':'Kaoshantun','鞍山':'Anshan',
   '額穆':'Emu','首山':'Shoushan','高碑店':'Kaopeitien','鴨園':'Yayuan',
-  '黃州':'Hwangju','黃泥河':'Huangniho','齊齊哈爾':'Tsitsihar',
+  '滿洲里':'Manchouli','黃州':'Hwangju','黃泥河':'Huangniho','齊齊哈爾':'Tsitsihar',
 };
 // Reverse lookup: English (lowercase) -> Chinese
 const ENGLISH_TO_CHINESE = {};
@@ -589,6 +589,7 @@ const MODERN_ALIASES = {
   '秦皇島': ['Qinhuangdao'],
   '山海關': ['Shanhaiguan'],
   '海拉爾': ['Hailaer', 'Hailar'],
+  '滿洲里': ['Manzhouli', 'Manchouli'],
   '葫蘆島': ['Huludao'],
   // Other stations
   '一面坡': ['Yimianpo'],

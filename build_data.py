@@ -56,7 +56,7 @@ def load_timetable_data():
 # ─────────────────── Step 2: Load station coordinates ───────────────────
 
 # Important cities to include even if outside the Manchuria bbox
-FORCE_INCLUDE_STATIONS = {'北京', '天津', '京城'}
+FORCE_INCLUDE_STATIONS = {'北京', '天津', '京城', '滿洲里'}
 
 # Extended corridor bboxes to load intermediate stations for rail connectivity
 CORRIDORS = [
