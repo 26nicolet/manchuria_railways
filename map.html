@@ -416,6 +416,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="legend-row"><span style="display:inline-block;width:7px;height:7px;background:#e94560;border:1px solid #fff;transform:rotate(45deg);"></span> Minor station</div>
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#111;border-radius:50%;border:1.5px solid #555;text-align:center;line-height:10px;font-size:6px;color:#fff;">&#9654;</span> Active train</div>
   <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
+  <div class="legend-row"><span style="font-size:1rem">♨️</span> Hot springs</div>
 </div>
 
 <button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
@@ -1720,6 +1721,69 @@ const cityLodgingData = {
       }
     ],
     activities: []
+  },
+  '熊岳城': {
+    displayName: 'Hsiungyaocheng (熊岳城) — Hot Springs',
+    drawing: null,
+    lat: 40.1797798, lon: 122.1424411,
+    lodging: [
+      {
+        name: 'Onsen Hotel',
+        jp: '温泉ホテル',
+        details: 'A Japanese hotel in close proximity to the springs. The Hotel provides excellent bathing facilities. There are four beautiful private bathrooms in Japanese style to which the water in the hot springs is laid on. These are specially recommendable to foreigners. A hand-car service on a light railway, owned by the South Manchuria Railway Company, is also available.',
+        price: null
+      }
+    ],
+    activities: [],
+    photos: [
+      { src: 'hotsprings_info/Hsiung_HotSprings.JPEG', caption: 'Open-Air Hot Spring Bath, Hsiungyaocheng' },
+      { src: 'hotsprings_info/Hsiung_Hotel.JPEG', caption: 'Main Building, Hot Spring Hotel Hsiungyaocheng' }
+    ],
+    description: 'Pretty walks abound, by hill, field, and river. Clear thermal springs bubble up wherever a hole is bored in the river bed, and it is a most refreshing and exhilarating experience in the summer season to bathe in one of these hot springs encircled by the cold river water with the blue, cloudless sky overhead. Hsiungyaocheng is noted for two of its local products, red pears with delicious flavour and fish called Huanghuayii. The fish are caught in enormous numbers in the sea in the months of May and June. In the old days before the Revolution, the common people were not allowed to partake of this fish until it had been served on the Imperial table.',
+    notice: 'For the benefit of visitors to these Hot-Springs, the South Manchuria Railway Company issues 30 per cent Reduced Return Tickets for all classes of its train service available for a period of 14 days from this station.',
+    citation: 'Japan Tourist Bureau – Dairen Branch, "Hot Springs in Manchuria," 1919.'
+  },
+  '湯崗子': {
+    displayName: 'Tangkangtzu (湯崗子) — Hot Springs',
+    drawing: null,
+    lat: 41.0123715, lon: 122.9118184,
+    lodging: [
+      {
+        name: 'Seirikan Hotel',
+        jp: '星利館ホテル',
+        details: 'One of the best outside Japan, and by no means inferior to the first-class hotels in Japan. In the main building are four magnificent private bathrooms in Japanese style, a Japanese billiard-room, and a conservatory.',
+        price: null
+      }
+    ],
+    activities: [],
+    photos: [
+      { src: 'hotsprings_info/Tang_Hotel.JPEG', caption: 'The Seirikan Hotel, Tangkangtzu' },
+      { src: 'hotsprings_info/Tang_HotSpringRoom.JPEG', caption: 'Japanese Room, Tangkangtzu Hot Spring' }
+    ],
+    description: 'The Hot Springs are situated only a few minutes\u2019 walk from the railway station. Tradition says that during the reign of the Emperor Taitsung (A.D. 627\u2013650), the Chinese troops dressed their wounds at these hot springs in the course of the expeditionary war against the Koreans, which resulted in the annexation of the Korean Kingdom. The scenery in the district of Tangkangtzu is remarkably majestic and magnificent. The majority of people appear to think that Manchuria is nothing but a vast, desolate plain, practically devoid of attraction through the year, but in reality it has scenery which, though little known, rivals that of any country in the world.',
+    notice: 'For the benefit of visitors to these Hot-Springs, the South Manchuria Railway Company issues 30 per cent Reduced Return Tickets for all classes of its train service available for a period of 14 days from this station.',
+    citation: 'Japan Tourist Bureau – Dairen Branch, "Hot Springs in Manchuria," 1919.'
+  },
+  '五龍背': {
+    displayName: 'Wulungpei (五龍背) — Hot Springs',
+    drawing: null,
+    lat: 40.2630399, lon: 124.2710632,
+    lodging: [
+      {
+        name: 'Goryukaku Hotel',
+        jp: '五龍閣ホテル',
+        details: 'Situated a few minutes\u2019 walk from the railway station. It is a picturesque and comfortable building, European in outward appearance and Japanese in interior construction and furnishings. The private baths are all that can be desired.',
+        price: null
+      }
+    ],
+    activities: [],
+    photos: [
+      { src: 'hotsprings_info/Wulung_Garden.JPEG', caption: 'Gardens at the Goryukaku Hotel, Wulungpei' },
+      { src: 'hotsprings_info/Wulung_HotSpring.JPEG', caption: 'Wulungpei Hot Spring seen at a distance from River Hamatang' }
+    ],
+    description: 'The Wulungpei Hot Springs are situated on the upper course of the River Shaho, on the Mukden\u2013Antung Line of the SMR, and 15 miles from the frontier of Manchuria and Chosen. Nature has placed this modern resort in a marvellously beautiful spot in a huge amphitheatre with park-like lands stretching away on all sides to the surrounding hills. Of a restful and refreshing green in the summer, the scenery is exquisite in the fall when the autumn tints are ablaze over hills and meadows and the fire-flies dance in the evening calm.',
+    notice: 'For the benefit of visitors to these Hot-Springs, the South Manchuria Railway Company issues 30 per cent Reduced Return Tickets for all classes of its train service available for a period of 14 days from this station.',
+    citation: 'Japan Tourist Bureau – Dairen Branch, "Hot Springs in Manchuria," 1919.'
   }
 };
 
@@ -1730,14 +1794,16 @@ function drawLodgingIcons() {
   lodgingMarkers = {};
 
   for (const [stationName, city] of Object.entries(cityLodgingData)) {
+    const emoji = city.photos ? '♨️' : '🏨';
     const icon = L.divIcon({
       className: '',
-      html: '<div class="lodging-map-icon">🏨</div>',
+      html: `<div class="lodging-map-icon">${emoji}</div>`,
       iconSize: [26, 26],
       iconAnchor: [13, 13],
     });
     const marker = L.marker([city.lat, city.lon], { icon, zIndexOffset: 1000 }).addTo(map);
-    marker.bindTooltip(city.displayName + ' — Lodging & Activities', { direction: 'top', offset: [0, -16] });
+    const tooltipLabel = city.photos ? 'Hot Springs' : 'Lodging & Activities';
+    marker.bindTooltip(city.displayName + ' — ' + tooltipLabel, { direction: 'top', offset: [0, -16] });
     marker.on('click', () => openLodgingPanel(stationName));
     lodgingMarkers[stationName] = marker;
   }
@@ -1759,6 +1825,21 @@ function openLodgingPanel(stationName) {
   // Station drawing
   if (city.drawing) {
     html += `<img src="${city.drawing}" alt="${city.displayName} station" style="width:100%;border-radius:8px;margin-bottom:12px;">`;
+  }
+
+  // Photos gallery (hot springs)
+  if (city.photos && city.photos.length > 0) {
+    city.photos.forEach(p => {
+      html += `<figure style="margin:0 0 12px 0;">`;
+      html += `<img src="${p.src}" alt="${p.caption}" style="width:100%;border-radius:8px;">`;
+      html += `<figcaption style="font-size:0.75rem;color:#999;font-style:italic;margin-top:4px;text-align:center;">${p.caption}</figcaption>`;
+      html += `</figure>`;
+    });
+  }
+
+  // Description (hot springs)
+  if (city.description) {
+    html += `<div style="color:#ccc;font-size:0.85rem;line-height:1.5;margin-bottom:14px;">${city.description}</div>`;
   }
 
   // Lodging section
@@ -1788,6 +1869,16 @@ function openLodgingPanel(stationName) {
       html += '</div>';
     });
     html += '</div>';
+  }
+
+  // Notice and citation (hot springs)
+  if (city.notice) {
+    html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #333;">`;
+    html += `<div style="color:#e94560;font-size:0.75rem;font-style:italic;margin-bottom:6px;"><strong>Notice:</strong> ${city.notice}</div>`;
+    html += `</div>`;
+  }
+  if (city.citation) {
+    html += `<div style="color:#777;font-size:0.7rem;font-style:italic;">Source: ${city.citation}</div>`;
   }
 
   content.innerHTML = html;
