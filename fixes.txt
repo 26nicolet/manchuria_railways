@@ -1,0 +1,11 @@
+康平 --> can get rid of, no trains running
+舒蘭 --> wrong location, should be at 44.40788148354434, 126.95230987351385
+大房身 --> not snapped to a train line
+其塔木 --> not snapped to a train line
+城子街 --> not snapped to a train line
+岔路河 --> not snapped to a train line
+吉林 --> wrong location, should be at 43°51′26″N 126°34′17″E
+旅順 --> not snapped to a train line
+北安 --> not snapped to a train line
+
+

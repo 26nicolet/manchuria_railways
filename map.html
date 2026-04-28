@@ -791,15 +791,16 @@ let routeById = {};
 async function init() {
   map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; CARTO &copy; OSM',
-    maxZoom: 19, subdomains: 'abcd',
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: US National Park Service',
+    maxZoom: 8,
   }).addTo(map);
 
-  const [routeData, stationData, railwayData] = await Promise.all([
+  const [routeData, stationData, railwayData, harbinVladData] = await Promise.all([
     fetch('results/route_data.json').then(r => r.json()),
     fetch('results/all_stations.json').then(r => r.json()),
     fetch('results/railway_network.json').then(r => r.json()),
+    fetch('results/harbin_vladivostok_railway.geojson').then(r => r.json()),
   ]);
 
   routes = routeData;
@@ -811,6 +812,12 @@ async function init() {
 
   // Draw railway network background
   L.geoJSON(railwayData, {
+    style: { color: '#e94560', weight: 2.5, opacity: 0.7 },
+    interactive: false,
+  }).addTo(map);
+
+  // Draw Harbin–Vladivostok railway (滨绥线 + Russian section)
+  L.geoJSON(harbinVladData, {
     style: { color: '#e94560', weight: 2.5, opacity: 0.7 },
     interactive: false,
   }).addTo(map);

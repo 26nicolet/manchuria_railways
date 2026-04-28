@@ -7,8 +7,4 @@ venv/
 extracted_data/
 *.pdf
 *.json
-!results/route_data.json
-!results/all_stations.json
-!results/railway_network.json
 *.png
-!station_drawings/*.png
