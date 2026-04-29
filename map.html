@@ -271,6 +271,16 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   font-family:inherit;
 }
 #about-btn:hover { background:#333; }
+
+/* ── 1937 Raster Overlay Toggle ── */
+#raster-overlay-btn {
+  position:absolute; bottom:56px; right:12px; z-index:999;
+  background:#111; color:white; border:1px solid #555; padding:6px 14px;
+  border-radius:4px; cursor:pointer; font-size:0.9rem; font-weight:bold;
+  font-family:inherit; transition:background 0.15s,border-color 0.15s;
+}
+#raster-overlay-btn:hover { background:#333; }
+#raster-overlay-btn.active { background:#2a1a2e; border-color:#e94560; color:#e94560; }
 #about-panel {
   position:absolute; bottom:60px; right:12px; z-index:999;
   background:rgba(22,33,62,0.97); border-radius:8px; padding:16px;
@@ -409,6 +419,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div id="tp-stops"></div>
 </div>
 
+<button id="raster-overlay-btn" onclick="toggleRasterOverlay()" title="Toggle 1937 map overlay">Show 1937 Map</button>
+
 <div id="legend">
   <h3>Legend</h3>
   <div class="legend-row"><span style="color:#e94560;font-size:1.2em">&#9644;</span> Railway line</div>
@@ -417,6 +429,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#111;border-radius:50%;border:1.5px solid #555;text-align:center;line-height:10px;font-size:6px;color:#fff;">&#9654;</span> Active train</div>
   <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
   <div class="legend-row"><span style="font-size:1rem">♨️</span> Hot springs</div>
+  <div class="legend-row" id="legend-raster-row" style="display:none"><span style="display:inline-block;width:14px;height:10px;background:linear-gradient(to right,#c8a87c,#d4b896);border:1px solid #888;"></span> 1937 map overlay</div>
 </div>
 
 <button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
@@ -485,6 +498,8 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/georaster"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
 <script>
 // ===================== STATION ENGLISH NAMES (1940s romanizations) =====================
 const STATION_ENGLISH = {
@@ -791,9 +806,9 @@ let routeById = {};
 async function init() {
   map = L.map('map', { center: MAP_CENTER, zoom: MAP_ZOOM, zoomControl: true });
 
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Source: US National Park Service',
-    maxZoom: 8,
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd', maxZoom: 19,
   }).addTo(map);
 
   const [routeData, stationData, railwayData, harbinVladData] = await Promise.all([
@@ -1906,6 +1921,61 @@ function toggleAboutPanel() {
 function closeAboutPanel() {
   document.getElementById('about-panel').style.display = 'none';
   hideBackdrop();
+}
+
+// ===================== 1937 RASTER OVERLAY =====================
+let rasterLayer = null;
+let rasterLoading = false;
+
+async function toggleRasterOverlay() {
+  const btn = document.getElementById('raster-overlay-btn');
+  const legendRow = document.getElementById('legend-raster-row');
+
+  // If already on map, toggle off
+  if (rasterLayer && map.hasLayer(rasterLayer)) {
+    map.removeLayer(rasterLayer);
+    btn.classList.remove('active');
+    btn.textContent = 'Show 1937 Map';
+    legendRow.style.display = 'none';
+    return;
+  }
+
+  // If layer object exists but not on map, just re-add
+  if (rasterLayer) {
+    rasterLayer.addTo(map);
+    btn.classList.add('active');
+    btn.textContent = 'Hide 1937 Map';
+    legendRow.style.display = '';
+    return;
+  }
+
+  // First load — fetch the GeoTIFF exported from QGIS
+  if (rasterLoading) return;
+  rasterLoading = true;
+  btn.textContent = '⏳ Loading…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('raster_map_warped.tif');
+    if (!res.ok) throw new Error(`File not found (${res.status}). Export raster_map_warped.tif from QGIS first.`);
+    const arrayBuffer = await res.arrayBuffer();
+    const georaster = await parseGeoraster(arrayBuffer);
+    rasterLayer = new GeoRasterLayer({
+      georaster,
+      opacity: 0.65,
+      resolution: 256,
+    });
+    rasterLayer.addTo(map);
+    btn.classList.add('active');
+    legendRow.style.display = '';
+  } catch(e) {
+    alert('Could not load raster_map_warped.tif:\n' + e.message);
+    console.error(e);
+  } finally {
+    btn.textContent = rasterLayer && map.hasLayer(rasterLayer) ? 'Hide 1937 Map' : 'Show 1937 Map';
+    btn.disabled = false;
+    rasterLoading = false;
+  }
 }
 
 function closeAllPanels() {
