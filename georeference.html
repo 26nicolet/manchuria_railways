@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Georeference — raster_map.jpg</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; flex-direction: column; height: 100vh; font-family: 'Georgia', serif; background: #1a1a2e; color: #e0d8c8; overflow: hidden; }
+
+#toolbar {
+  background: #F5C518;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #333;
+  color: #111;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+#toolbar strong { font-size: 0.9rem; margin-right: 4px; }
+.tb-sep { border-left: 1px solid #888; padding-left: 8px; display: flex; align-items: center; gap: 8px; }
+.tb-btn {
+  background: #222; color: #eee; border: none; padding: 4px 11px;
+  border-radius: 4px; cursor: pointer; font-size: 0.78rem; font-weight: bold;
+}
+.tb-btn:hover { background: #444; }
+.tb-btn.active { background: #e94560; color: white; }
+.tb-btn:disabled { background: #555; color: #888; cursor: default; }
+#status {
+  margin-left: auto; font-style: italic; color: #333; font-size: 0.78rem;
+  max-width: 380px; text-align: right;
+}
+
+#workspace { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+#img-pane {
+  width: 50%; position: relative; overflow: hidden; background: #0d0d1a;
+  border-right: 2px solid #333; flex-shrink: 0;
+}
+#img-canvas { display: block; }
+#img-pane-label {
+  position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.6);
+  color: #aaa; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px;
+  pointer-events: none;
+}
+
+#map-pane { width: 50%; position: relative; }
+#leaflet-map { width: 100%; height: 100%; }
+#map-pane-label {
+  position: absolute; top: 8px; left: 8px; z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  color: #aaa; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px;
+  pointer-events: none;
+}
+
+#gcp-panel {
+  background: #16213e; border-top: 1px solid #333;
+  padding: 5px 14px; flex-shrink: 0;
+  max-height: 140px; overflow-y: auto;
+}
+#gcp-panel h3 { color: #e94560; font-size: 0.78rem; margin-bottom: 4px; }
+#gcp-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+#gcp-table th { background: #e94560; color: white; padding: 3px 7px; text-align: left; }
+#gcp-table td { padding: 2px 7px; border-bottom: 1px solid #2a3a6e; color: #ccc; }
+#gcp-table tr:hover td { background: rgba(233,69,96,0.08); }
+.del-btn { background: #e94560; color: white; border: none; padding: 1px 5px; border-radius: 3px; cursor: pointer; font-size: 0.68rem; }
+
+/* Export modal */
+#export-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#export-modal.open { display: flex; }
+#export-box {
+  background: #16213e; border: 1px solid #e94560; border-radius: 8px;
+  padding: 20px; width: 640px; max-width: 95vw; max-height: 85vh;
+  overflow-y: auto;
+}
+#export-box h3 { color: #e94560; margin-bottom: 10px; }
+.export-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+#export-pre {
+  background: #0d1117; padding: 10px 14px; border-radius: 4px;
+  font-family: 'Courier New', monospace; font-size: 0.73rem;
+  overflow: auto; max-height: 320px; color: #7ec8a4;
+  white-space: pre; border: 1px solid #333;
+}
+.export-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Crop overlay on image canvas */
+#crop-instruction {
+  display: none; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.75); color: #fff; padding: 5px 14px; border-radius: 20px;
+  font-size: 0.78rem; pointer-events: none;
+}
+#crop-instruction.visible { display: block; }
+
+/* Hint panel (collapsible) */
+#hint-btn {
+  position: absolute; bottom: 10px; right: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.6); color: #aaa; border: 1px solid #555;
+  padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 0.72rem;
+}
+#hint-panel {
+  display: none; position: absolute; bottom: 40px; right: 10px; z-index: 1000;
+  background: rgba(22,33,62,0.95); border: 1px solid #555;
+  border-radius: 6px; padding: 10px 14px; font-size: 0.75rem; width: 260px;
+}
+#hint-panel.open { display: block; }
+#hint-panel h4 { color: #e94560; margin-bottom: 6px; }
+.hint-city { cursor: pointer; color: #7ec8a4; margin: 3px 0; text-decoration: underline; }
+.hint-city:hover { color: #e94560; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <strong>Georeference</strong> raster_map.jpg
+  <div class="tb-sep">
+    <button class="tb-btn active" id="btn-gcp">✚ Add GCP</button>
+    <button class="tb-btn" id="btn-pan">✋ Pan</button>
+    <button class="tb-btn" id="btn-crop">✂ Crop Region</button>
+    <button class="tb-btn" id="btn-crop-clear" title="Clear crop selection">✕ Clear Crop</button>
+  </div>
+  <div class="tb-sep">
+    <button class="tb-btn" id="btn-undo">↩ Undo</button>
+    <button class="tb-btn" id="btn-clear-all">🗑 Clear All</button>
+  </div>
+  <div class="tb-sep">
+    <button class="tb-btn" id="btn-preview" disabled>👁 Preview Overlay</button>
+    <label style="color:#333;font-size:0.78rem;">Opacity
+      <input type="range" id="opacity-slider" min="0" max="1" step="0.05" value="0.7" style="width:70px;vertical-align:middle;">
+    </label>
+  </div>
+  <div class="tb-sep">
+    <button class="tb-btn" id="btn-load-gcps">📂 Load GCPs</button>
+    <button class="tb-btn" id="btn-export">⬇ Export</button>
+  </div>
+  <span id="status">GCP mode: click on the image to begin.</span>
+</div>
+
+<!-- Load GCPs Modal -->
+<div id="load-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#16213e;border:1px solid #e94560;border-radius:8px;padding:20px;width:560px;max-width:95vw;">
+    <h3 style="color:#e94560;margin-bottom:10px;">Load GCPs from JSON</h3>
+    <p style="font-size:0.78rem;color:#aaa;margin-bottom:8px;">Paste the exported GCPs JSON here:</p>
+    <textarea id="load-textarea" style="width:100%;height:220px;background:#0d1117;color:#7ec8a4;border:1px solid #333;border-radius:4px;padding:8px;font-family:monospace;font-size:0.73rem;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="tb-btn" onclick="applyLoadedGcps()">✔ Apply</button>
+      <button class="tb-btn" onclick="document.getElementById('load-modal').style.display='none'">Cancel</button>
+    </div>
+    <p id="load-error" style="color:#e94560;font-size:0.75rem;margin-top:6px;"></p>
+  </div>
+</div>
+
+<div id="workspace">
+  <div id="img-pane">
+    <canvas id="img-canvas"></canvas>
+    <div id="img-pane-label">Image viewer — scroll to zoom, drag in Pan mode</div>
+    <div id="crop-instruction">Drag to select the region you want to overlay</div>
+  </div>
+  <div id="map-pane">
+    <div id="leaflet-map"></div>
+    <div id="map-pane-label">Map — click to set geographic location of marked point</div>
+    <button id="hint-btn">📍 City Hints</button>
+    <div id="hint-panel">
+      <h4>Common reference points</h4>
+      <p style="color:#888;font-size:0.7rem;margin-bottom:6px;">Click to fly to city, then click precise location on map.</p>
+      <div class="hint-city" data-lat="45.804" data-lng="126.535">哈爾濱 Harbin (45.80°N, 126.54°E)</div>
+      <div class="hint-city" data-lat="41.796" data-lng="123.432">瀋陽 Mukden/Shenyang (41.80°N, 123.43°E)</div>
+      <div class="hint-city" data-lat="43.117" data-lng="131.898">Владивосток (43.12°N, 131.90°E)</div>
+      <div class="hint-city" data-lat="43.833" data-lng="125.323">長春 Changchun (43.83°N, 125.32°E)</div>
+      <div class="hint-city" data-lat="38.914" data-lng="121.614">大連 Dalian (38.91°N, 121.61°E)</div>
+      <div class="hint-city" data-lat="35.690" data-lng="139.692">東京 Tokyo (35.69°N, 139.69°E)</div>
+      <div class="hint-city" data-lat="37.566" data-lng="126.978">京城 Seoul (37.57°N, 126.98°E)</div>
+      <div class="hint-city" data-lat="39.929" data-lng="116.388">北京 Beijing (39.93°N, 116.39°E)</div>
+    </div>
+  </div>
+</div>
+
+<div id="gcp-panel">
+  <h3>Ground Control Points — <span id="gcp-count">0</span> points <span id="gcp-hint" style="color:#888;font-weight:normal;">(need 4 for preview)</span></h3>
+  <table id="gcp-table">
+    <thead>
+      <tr><th>#</th><th>Image X (px)</th><th>Image Y (px)</th><th>Latitude</th><th>Longitude</th><th></th></tr>
+    </thead>
+    <tbody id="gcp-tbody"></tbody>
+  </table>
+</div>
+
+<!-- Export Modal -->
+<div id="export-modal">
+  <div id="export-box">
+    <h3>Export</h3>
+    <div class="export-tabs">
+      <button class="tb-btn active" onclick="showTab('gcps')">GCPs JSON</button>
+      <button class="tb-btn" onclick="showTab('gdal')">GDAL Commands</button>
+      <button class="tb-btn" onclick="showTab('leaflet')">Leaflet Toggle Code</button>
+    </div>
+    <pre id="export-pre"></pre>
+    <div class="export-actions">
+      <button class="tb-btn" onclick="copyExport()">Copy to Clipboard</button>
+      <button class="tb-btn" onclick="closeExport()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================
+//  STATE
+// ============================
+const gcps = [];        // [{imgX, imgY, lat, lng}, ...]
+let mode = 'gcp';       // 'gcp' | 'pan' | 'crop'
+let gcpStep = 'img';    // 'img' = waiting for image click, 'map' = waiting for map click
+let pendingImgPt = null;
+
+let cropRect = null;    // {x, y, w, h} in image pixels, or null
+let cropDragging = false, cropStart = null;
+
+let overlayLayer = null;
+let previewOn = false;
+
+// Image natural dimensions
+let imgW = 0, imgH = 0;
+
+// Canvas pan/zoom
+let imgScale = 1, imgOffX = 0, imgOffY = 0;
+let panDragging = false, panStartX, panStartY, panStartOffX, panStartOffY;
+
+// ============================
+//  LEAFLET MAP
+// ============================
+const lmap = L.map('leaflet-map', { center: [44, 126], zoom: 4 });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© CARTO © OSM', maxZoom: 19, subdomains: 'abcd'
+}).addTo(lmap);
+
+const mapGcpMarkers = [];
+
+lmap.on('click', (e) => {
+  if (gcpStep !== 'map') return;
+  const { lat, lng } = e.latlng;
+  completeGcp(lat, lng);
+});
+
+// ============================
+//  IMAGE CANVAS
+// ============================
+const imgPane  = document.getElementById('img-pane');
+const canvas   = document.getElementById('img-canvas');
+const ctx      = canvas.getContext('2d');
+const mapImage = new Image();
+
+mapImage.onload = () => {
+  imgW = mapImage.naturalWidth;
+  imgH = mapImage.naturalHeight;
+  resizeCanvas();
+  fitImage();
+  drawCanvas();
+};
+mapImage.src = 'raster_map.jpg';
+
+function resizeCanvas() {
+  canvas.width  = imgPane.clientWidth;
+  canvas.height = imgPane.clientHeight;
+}
+window.addEventListener('resize', () => { resizeCanvas(); drawCanvas(); });
+
+function fitImage() {
+  const pw = imgPane.clientWidth, ph = imgPane.clientHeight;
+  const s  = Math.min(pw / imgW, ph / imgH) * 0.92;
+  imgScale = s;
+  imgOffX  = (pw - imgW * s) / 2;
+  imgOffY  = (ph - imgH * s) / 2;
+}
+
+function canvasToImg(cx, cy)  { return { x: (cx - imgOffX) / imgScale, y: (cy - imgOffY) / imgScale }; }
+function imgToCanvas(ix, iy)  { return { x: ix * imgScale + imgOffX,   y: iy * imgScale + imgOffY  }; }
+
+// ============================
+//  DRAW
+// ============================
+const COLORS = ['#e94560','#53d769','#f0a500','#4fa3e0','#c979d6','#ff8c00','#00ced1','#ff69b4'];
+
+function drawCanvas() {
+  if (!canvas.width) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Image
+  ctx.save();
+  ctx.translate(imgOffX, imgOffY);
+  ctx.scale(imgScale, imgScale);
+  if (mapImage.complete && imgW > 0) ctx.drawImage(mapImage, 0, 0);
+
+  // Crop dim overlay
+  if (cropRect) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    // top
+    ctx.fillRect(0, 0, imgW, cropRect.y);
+    // bottom
+    ctx.fillRect(0, cropRect.y + cropRect.h, imgW, imgH - cropRect.y - cropRect.h);
+    // left
+    ctx.fillRect(0, cropRect.y, cropRect.x, cropRect.h);
+    // right
+    ctx.fillRect(cropRect.x + cropRect.w, cropRect.y, imgW - cropRect.x - cropRect.w, cropRect.h);
+    // border
+    ctx.strokeStyle = '#F5C518';
+    ctx.lineWidth = 3 / imgScale;
+    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    // label
+    ctx.fillStyle = '#F5C518';
+    ctx.font = `bold ${13 / imgScale}px sans-serif`;
+    ctx.fillText('Selected region', cropRect.x + 4 / imgScale, cropRect.y - 6 / imgScale);
+  }
+  ctx.restore();
+
+  // Crop drag preview
+  if (cropDragging && cropStart) {
+    const r = normRect(cropStart.cx, cropStart.cy, cropStart.curX, cropStart.curY);
+    ctx.strokeStyle = '#F5C518';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.setLineDash([]);
+  }
+
+  // Confirmed GCP markers
+  gcps.forEach((gcp, i) => {
+    const cp = imgToCanvas(gcp.imgX, gcp.imgY);
+    drawCircle(cp.x, cp.y, i + 1, COLORS[i % COLORS.length]);
+  });
+
+  // Pending (image point set, waiting for map)
+  if (pendingImgPt) {
+    const cp = imgToCanvas(pendingImgPt.x, pendingImgPt.y);
+    drawCircle(cp.x, cp.y, gcps.length + 1, '#F5C518', true);
+  }
+}
+
+function drawCircle(cx, cy, label, color, pending = false) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+  ctx.fillStyle = color + (pending ? '88' : 'cc');
+  ctx.fill();
+  ctx.strokeStyle = pending ? '#fff' : '#000';
+  ctx.lineWidth = pending ? 2 : 1.5;
+  if (pending) { ctx.setLineDash([4, 3]); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, cy);
+}
+
+// ============================
+//  MOUSE EVENTS — IMAGE CANVAS
+// ============================
+canvas.addEventListener('click', (e) => {
+  if (mode === 'pan' || mode === 'crop') return;
+  if (gcpStep !== 'img') return;
+
+  const rect = canvas.getBoundingClientRect();
+  const ip   = canvasToImg(e.clientX - rect.left, e.clientY - rect.top);
+  if (ip.x < 0 || ip.x > imgW || ip.y < 0 || ip.y > imgH) return;
+
+  pendingImgPt = ip;
+  gcpStep = 'map';
+  setStatus(`GCP ${gcps.length + 1} — image point (${Math.round(ip.x)}, ${Math.round(ip.y)}). Now click the map.`);
+  drawCanvas();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+
+  if (mode === 'pan') {
+    panDragging = true; panStartX = e.clientX; panStartY = e.clientY;
+    panStartOffX = imgOffX; panStartOffY = imgOffY;
+    canvas.style.cursor = 'grabbing';
+  }
+  if (mode === 'crop') {
+    cropDragging = true;
+    cropStart = { cx, cy, curX: cx, curY: cy };
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (panDragging) {
+    imgOffX = panStartOffX + (e.clientX - panStartX);
+    imgOffY = panStartOffY + (e.clientY - panStartY);
+    drawCanvas();
+  }
+  if (cropDragging && cropStart) {
+    const rect = canvas.getBoundingClientRect();
+    cropStart.curX = e.clientX - rect.left;
+    cropStart.curY = e.clientY - rect.top;
+    drawCanvas();
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (panDragging) { panDragging = false; canvas.style.cursor = mode === 'pan' ? 'grab' : 'crosshair'; }
+  if (cropDragging && cropStart) {
+    cropDragging = false;
+    const rect = canvas.getBoundingClientRect();
+    const curX = e.clientX - rect.left, curY = e.clientY - rect.top;
+    const r = normRect(cropStart.cx, cropStart.cy, curX, curY);
+    if (r.w > 5 && r.h > 5) {
+      const tl = canvasToImg(r.x, r.y);
+      const br = canvasToImg(r.x + r.w, r.y + r.h);
+      cropRect = {
+        x: Math.max(0, tl.x), y: Math.max(0, tl.y),
+        w: Math.min(imgW, br.x) - Math.max(0, tl.x),
+        h: Math.min(imgH, br.y) - Math.max(0, tl.y)
+      };
+    }
+    cropStart = null;
+    drawCanvas();
+    setStatus('Crop set. Switch back to Add GCP mode to mark control points.');
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.14 : 1 / 1.14;
+  imgOffX = mx - (mx - imgOffX) * factor;
+  imgOffY = my - (my - imgOffY) * factor;
+  imgScale *= factor;
+  drawCanvas();
+}, { passive: false });
+
+function normRect(x1, y1, x2, y2) {
+  return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+}
+
+// ============================
+//  GCP COMPLETION
+// ============================
+function completeGcp(lat, lng) {
+  const gcp = { imgX: pendingImgPt.x, imgY: pendingImgPt.y, lat, lng };
+  gcps.push(gcp);
+
+  const i = gcps.length - 1;
+  const color = COLORS[i % COLORS.length];
+  const marker = L.circleMarker([lat, lng], {
+    radius: 10, color, fillColor: color, fillOpacity: 0.85, weight: 2
+  }).bindTooltip(`${i + 1}`, { permanent: true, className: 'leaflet-tooltip', direction: 'center', offset: [0, 0] })
+    .addTo(lmap);
+  mapGcpMarkers.push(marker);
+
+  pendingImgPt = null;
+  gcpStep = 'img';
+  updateTable();
+  drawCanvas();
+
+  const need = Math.max(0, 4 - gcps.length);
+  if (need === 0) {
+    document.getElementById('btn-preview').disabled = false;
+    document.getElementById('gcp-hint').textContent = '— ready for preview!';
+    setStatus(`${gcps.length} GCPs set. Click Preview or add more for better accuracy.`);
+  } else {
+    setStatus(`${gcps.length} GCP(s). Need ${need} more for preview. Click on image for next.`);
+  }
+}
+
+// ============================
+//  GCP TABLE
+// ============================
+function updateTable() {
+  const tbody = document.getElementById('gcp-tbody');
+  tbody.innerHTML = '';
+  gcps.forEach((g, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${Math.round(g.imgX)}</td><td>${Math.round(g.imgY)}</td>
+      <td>${g.lat.toFixed(5)}</td><td>${g.lng.toFixed(5)}</td>
+      <td><button class="del-btn" onclick="deleteGcp(${i})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('gcp-count').textContent = gcps.length;
+}
+
+function deleteGcp(i) {
+  gcps.splice(i, 1);
+  if (mapGcpMarkers[i]) { lmap.removeLayer(mapGcpMarkers[i]); mapGcpMarkers.splice(i, 1); }
+  // Re-label remaining
+  mapGcpMarkers.forEach((m, j) => m.setTooltipContent(`${j + 1}`));
+  updateTable(); drawCanvas();
+  if (gcps.length < 4) {
+    document.getElementById('btn-preview').disabled = true;
+    document.getElementById('gcp-hint').textContent = '(need 4 for preview)';
+  }
+  if (previewOn) { removeOverlay(); }
+}
+
+// ============================
+//  TOOLBAR BUTTONS
+// ============================
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-gcp').classList.toggle('active', m === 'gcp');
+  document.getElementById('btn-pan').classList.toggle('active', m === 'pan');
+  document.getElementById('btn-crop').classList.toggle('active', m === 'crop');
+  document.getElementById('crop-instruction').classList.toggle('visible', m === 'crop');
+  canvas.style.cursor = m === 'pan' ? 'grab' : m === 'crop' ? 'crosshair' : 'crosshair';
+  if (m === 'gcp') {
+    gcpStep = 'img';
+    setStatus('Click on the image to place a GCP.');
+  } else if (m === 'pan') {
+    setStatus('Pan mode: drag to navigate, scroll to zoom.');
+  } else if (m === 'crop') {
+    setStatus('Crop mode: drag a rectangle over the region to overlay (e.g. top-left inset).');
+  }
+}
+
+document.getElementById('btn-gcp').addEventListener('click',  () => setMode('gcp'));
+document.getElementById('btn-pan').addEventListener('click',  () => setMode('pan'));
+document.getElementById('btn-crop').addEventListener('click', () => setMode('crop'));
+
+document.getElementById('btn-crop-clear').addEventListener('click', () => {
+  cropRect = null; drawCanvas(); setStatus('Crop cleared — full image will be used.');
+});
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (gcpStep === 'map' && pendingImgPt) {
+    pendingImgPt = null; gcpStep = 'img'; drawCanvas();
+    setStatus('Cancelled pending image point.');
+  } else if (gcps.length > 0) {
+    deleteGcp(gcps.length - 1);
+    setStatus(`Removed last GCP. ${gcps.length} remaining.`);
+  }
+});
+
+document.getElementById('btn-clear-all').addEventListener('click', () => {
+  if (!confirm('Clear all GCPs and crop?')) return;
+  gcps.length = 0;
+  mapGcpMarkers.forEach(m => lmap.removeLayer(m));
+  mapGcpMarkers.length = 0;
+  pendingImgPt = null; cropRect = null; gcpStep = 'img';
+  removeOverlay();
+  updateTable(); drawCanvas();
+  document.getElementById('btn-preview').disabled = true;
+  document.getElementById('gcp-hint').textContent = '(need 4 for preview)';
+  setStatus('Cleared.');
+});
+
+// ============================
+//  HOMOGRAPHY (DLT with Hartley normalization)
+// ============================
+// Solves for 3x3 homography H: image (imgX,imgY) -> geo (lng, lat)
+// Hartley normalization is critical for numerical stability with pixel coords ~500
+// and degree coords ~120 — without it the 9x9 matrix is badly conditioned.
+
+function mat3mul(A, B) {
+  const C = [[0,0,0],[0,0,0],[0,0,0]];
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      for (let k = 0; k < 3; k++)
+        C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+function solveHomography(gcpList) {
+  const n = gcpList.length;
+
+  // --- Hartley normalization for source (image) coords ---
+  let msx = 0, msy = 0;
+  for (const g of gcpList) { msx += g.imgX; msy += g.imgY; }
+  msx /= n; msy /= n;
+  let ssd = 0;
+  for (const g of gcpList) ssd += Math.hypot(g.imgX - msx, g.imgY - msy);
+  const ss = Math.SQRT2 * n / ssd;
+  // Ts: normalize src;  TsI: denormalize src
+  const Ts  = [[ss, 0, -ss*msx], [0, ss, -ss*msy], [0, 0, 1]];
+
+  // --- Hartley normalization for destination (geo) coords ---
+  let mdx = 0, mdy = 0;
+  for (const g of gcpList) { mdx += g.lng; mdy += g.lat; }
+  mdx /= n; mdy /= n;
+  let dsd = 0;
+  for (const g of gcpList) dsd += Math.hypot(g.lng - mdx, g.lat - mdy);
+  const ds = Math.SQRT2 * n / dsd;
+  // Td: normalize dst;  TdI: denormalize dst
+  const TdI = [[1/ds, 0, mdx], [0, 1/ds, mdy], [0, 0, 1]];
+
+  // --- Build DLT matrix with normalized coords ---
+  const A = [];
+  for (const g of gcpList) {
+    const sx = ss * (g.imgX - msx),  sy = ss * (g.imgY - msy);
+    const dx = ds * (g.lng  - mdx),  dy = ds * (g.lat  - mdy);
+    A.push([-sx, -sy, -1,   0,   0,  0, dx*sx, dx*sy, dx]);
+    A.push([  0,   0,  0, -sx, -sy, -1, dy*sx, dy*sy, dy]);
+  }
+
+  // --- Solve null-space of A via A^T A eigenvector ---
+  const ATA = Array.from({length: 9}, () => new Array(9).fill(0));
+  for (const row of A)
+    for (let i = 0; i < 9; i++)
+      for (let j = 0; j < 9; j++)
+        ATA[i][j] += row[i] * row[j];
+
+  const { vals, vecs } = jacobiEigen9(ATA);
+  let minIdx = 0;
+  for (let i = 1; i < 9; i++) if (vals[i] < vals[minIdx]) minIdx = i;
+  const h = vecs[minIdx];
+
+  const Hn = [[h[0],h[1],h[2]],[h[3],h[4],h[5]],[h[6],h[7],h[8]]];
+
+  // --- Denormalize: H = TdI * Hn * Ts ---
+  return mat3mul(mat3mul(TdI, Hn), Ts);
+}
+
+// Jacobi eigendecomposition for 9x9 symmetric matrix
+function jacobiEigen9(M) {
+  const n = 9;
+  const A = M.map(r => [...r]);
+  // V[r][c] = r-th row of V; after convergence, column c of V = c-th eigenvector
+  const V = Array.from({length: n}, (_, i) => { const r = new Array(n).fill(0); r[i] = 1; return r; });
+  for (let iter = 0; iter < 4500; iter++) {
+    let p = 0, q = 1, maxVal = 0;
+    for (let i = 0; i < n - 1; i++)
+      for (let j = i + 1; j < n; j++)
+        if (Math.abs(A[i][j]) > maxVal) { maxVal = Math.abs(A[i][j]); p = i; q = j; }
+    if (maxVal < 1e-14) break;
+    const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+    const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+    const c = 1 / Math.sqrt(1 + t*t), s = t*c;
+    const App = A[p][p], Aqq = A[q][q], Apq = A[p][q];
+    A[p][p] = c*c*App - 2*s*c*Apq + s*s*Aqq;
+    A[q][q] = s*s*App + 2*s*c*Apq + c*c*Aqq;
+    A[p][q] = A[q][p] = 0;
+    for (let r = 0; r < n; r++) {
+      if (r === p || r === q) continue;
+      const Apr = A[p][r], Aqr = A[q][r];
+      A[p][r] = A[r][p] = c*Apr - s*Aqr;
+      A[q][r] = A[r][q] = s*Apr + c*Aqr;
+    }
+    for (let r = 0; r < n; r++) {
+      const Vrp = V[r][p], Vrq = V[r][q];
+      V[r][p] = c*Vrp - s*Vrq;
+      V[r][q] = s*Vrp + c*Vrq;
+    }
+  }
+  const vals = A.map((r, i) => r[i]);
+  const vecs = Array.from({length: n}, (_, i) => V.map(row => row[i]));
+  return { vals, vecs };
+}
+
+// Apply homography H to a point [x, y]
+function applyH(H, x, y) {
+  const w = H[2][0]*x + H[2][1]*y + H[2][2];
+  return {
+    x: (H[0][0]*x + H[0][1]*y + H[0][2]) / w,
+    y: (H[1][0]*x + H[1][1]*y + H[1][2]) / w
+  };
+}
+
+// Invert 3x3 matrix
+function inv3x3(m) {
+  const [[a,b,c],[d,e,f],[g,h,k]] = m;
+  const det = a*(e*k-f*h) - b*(d*k-f*g) + c*(d*h-e*g);
+  return [
+    [(e*k-f*h)/det, (c*h-b*k)/det, (b*f-c*e)/det],
+    [(f*g-d*k)/det, (a*k-c*g)/det, (c*d-a*f)/det],
+    [(d*h-e*g)/det, (b*g-a*h)/det, (a*e-b*d)/det]
+  ];
+}
+
+// Build a warped canvas: geographic bounding box -> warped image
+// Strategy: inverse-map each output pixel (geo coords) back to image coords
+function buildWarpedCanvas(imgEl, gcpList, cropR) {
+  // 1. Compute H: image coords -> geo (lng, lat)
+  const H = solveHomography(gcpList);
+  const Hinv = inv3x3(H);  // geo -> image
+
+  // 2. Determine output geo bounding box from GCPs
+  const corners = cropR ? [
+    { imgX: cropR.x,           imgY: cropR.y            },
+    { imgX: cropR.x + cropR.w, imgY: cropR.y            },
+    { imgX: cropR.x + cropR.w, imgY: cropR.y + cropR.h  },
+    { imgX: cropR.x,           imgY: cropR.y + cropR.h  },
+  ] : [
+    { imgX: 0,    imgY: 0    },
+    { imgX: imgW, imgY: 0    },
+    { imgX: imgW, imgY: imgH },
+    { imgX: 0,    imgY: imgH },
+  ];
+
+  const geoPts = corners.map(c => applyH(H, c.imgX, c.imgY));
+  const lngs = geoPts.map(p => p.x), lats = geoPts.map(p => p.y);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+
+  // 3. Build output canvas
+  const OUT_W = 1024, OUT_H = Math.round(OUT_W * (maxLat - minLat) / (maxLng - minLng));
+  const oc = document.createElement('canvas');
+  oc.width = OUT_W; oc.height = OUT_H;
+  const octx = oc.getContext('2d');
+
+  // 4. Draw source image to a temp canvas for pixel sampling
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = imgEl.naturalWidth; srcCanvas.height = imgEl.naturalHeight;
+  srcCanvas.getContext('2d').drawImage(imgEl, 0, 0);
+  const srcCtx = srcCanvas.getContext('2d');
+
+  // 5. For each output pixel, compute geo coords, then inverse-map to image coords
+  const imgData = octx.createImageData(OUT_W, OUT_H);
+  const data = imgData.data;
+  // Read full source image data
+  const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height).data;
+  const SW = srcCanvas.width, SH = srcCanvas.height;
+
+  // Batch row by row
+  for (let oy = 0; oy < OUT_H; oy++) {
+    const lat = maxLat - (oy / OUT_H) * (maxLat - minLat);
+    for (let ox = 0; ox < OUT_W; ox++) {
+      const lng = minLng + (ox / OUT_W) * (maxLng - minLng);
+      // Inverse map: geo (lng,lat) -> image (ix, iy)
+      const ip = applyH(Hinv, lng, lat);
+      const ix = ip.x, iy = ip.y;
+      // If in crop region (or full image), sample
+      const inCrop = cropR
+        ? (ix >= cropR.x && ix < cropR.x + cropR.w && iy >= cropR.y && iy < cropR.y + cropR.h)
+        : (ix >= 0 && ix < SW && iy >= 0 && iy < SH);
+      if (!inCrop) continue;
+      // Bilinear sample
+      const fx = Math.floor(ix), fy = Math.floor(iy);
+      if (fx < 0 || fy < 0 || fx >= SW - 1 || fy >= SH - 1) continue;
+      const dx = ix - fx, dy = iy - fy;
+      const i00 = (fy * SW + fx) * 4;
+      const i10 = (fy * SW + fx + 1) * 4;
+      const i01 = ((fy + 1) * SW + fx) * 4;
+      const i11 = ((fy + 1) * SW + fx + 1) * 4;
+      const outIdx = (oy * OUT_W + ox) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        data[outIdx + ch] = Math.round(
+          srcData[i00+ch]*(1-dx)*(1-dy) + srcData[i10+ch]*dx*(1-dy) +
+          srcData[i01+ch]*(1-dx)*dy     + srcData[i11+ch]*dx*dy
+        );
+      }
+      data[outIdx + 3] = 255;
+    }
+  }
+  octx.putImageData(imgData, 0, 0);
+  return { canvas: oc, bounds: [[minLat, minLng], [maxLat, maxLng]] };
+}
+
+// ============================
+//  PREVIEW OVERLAY
+// ============================
+function removeOverlay() {
+  if (overlayLayer) { lmap.removeLayer(overlayLayer); overlayLayer = null; }
+  previewOn = false;
+  document.getElementById('btn-preview').textContent = '👁 Preview Overlay';
+}
+
+document.getElementById('btn-preview').addEventListener('click', () => {
+  if (previewOn) { removeOverlay(); return; }
+  if (gcps.length < 4) return;
+
+  setStatus('Computing homography warp… please wait.');
+  // Defer to next frame so status can render
+  setTimeout(() => {
+    try {
+      const { canvas: warpedCanvas, bounds } = buildWarpedCanvas(mapImage, gcps, cropRect);
+      const imgSrc = warpedCanvas.toDataURL('image/png');
+      const opacity = parseFloat(document.getElementById('opacity-slider').value);
+      overlayLayer = L.imageOverlay(imgSrc, bounds, { opacity, interactive: false }).addTo(lmap);
+      lmap.fitBounds(bounds, { padding: [20, 20] });
+      previewOn = true;
+      document.getElementById('btn-preview').textContent = '🙈 Hide Preview';
+      setStatus('Warped overlay applied using homography transform.');
+    } catch(err) {
+      setStatus('Warp error: ' + err.message);
+      console.error(err);
+    }
+  }, 20);
+});
+
+document.getElementById('opacity-slider').addEventListener('input', (e) => {
+  if (overlayLayer) overlayLayer.setOpacity(parseFloat(e.target.value));
+});
+
+function getCroppedUrl() {
+  if (!cropRect) return 'raster_map.jpg';
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width  = Math.round(cropRect.w);
+  tmpCanvas.height = Math.round(cropRect.h);
+  const tctx = tmpCanvas.getContext('2d');
+  tctx.drawImage(mapImage, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
+  return tmpCanvas.toDataURL('image/jpeg', 0.92);
+}
+
+
+// ============================
+//  CITY HINTS
+// ============================
+document.getElementById('hint-btn').addEventListener('click', () => {
+  document.getElementById('hint-panel').classList.toggle('open');
+});
+document.querySelectorAll('.hint-city').forEach(el => {
+  el.addEventListener('click', () => {
+    const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+    lmap.setView([lat, lng], 8);
+    document.getElementById('hint-panel').classList.remove('open');
+    if (gcpStep === 'map') setStatus(`Fly to ${el.textContent.trim()}. Click on the city marker on the map.`);
+  });
+});
+
+// ============================
+//  EXPORT
+// ============================
+let activeTab = 'gcps';
+const exportContent = {};
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (gcps.length < 2) { alert('Add at least 2 GCPs before exporting.'); return; }
+  buildExport();
+  document.getElementById('export-modal').classList.add('open');
+  showTab('gcps');
+});
+
+function buildExport() {
+  const crop = cropRect
+    ? { x: Math.round(cropRect.x), y: Math.round(cropRect.y), w: Math.round(cropRect.w), h: Math.round(cropRect.h) }
+    : null;
+
+  // GCPs JSON
+  exportContent.gcps = JSON.stringify({
+    image: 'raster_map.jpg',
+    imageSize: { width: imgW, height: imgH },
+    crop,
+    gcps: gcps.map((g, i) => ({
+      id: i + 1,
+      imgX: Math.round(g.imgX), imgY: Math.round(g.imgY),
+      lat: +g.lat.toFixed(6), lng: +g.lng.toFixed(6)
+    }))
+  }, null, 2);
+
+  // GDAL commands
+  const gcpArgs = gcps.map(g =>
+    `  -gcp ${Math.round(g.imgX)} ${Math.round(g.imgY)} ${g.lng.toFixed(6)} ${g.lat.toFixed(6)}`
+  ).join(' \\\n');
+  const cropCmd = crop
+    ? `\n# Optional crop to inset region (run before gdal_translate if desired)\nconvert raster_map.jpg -crop ${crop.w}x${crop.h}+${crop.x}+${crop.y} raster_map_crop.jpg\n`
+    : '';
+  exportContent.gdal = `${cropCmd}
+# 1. Assign GCPs
+gdal_translate -of GTiff \\
+${gcpArgs} \\
+  raster_map${crop ? '_crop' : ''}.jpg raster_map_gcps.tif
+
+# 2. Warp to WGS84
+gdalwarp -t_srs EPSG:4326 -r bilinear \\
+  raster_map_gcps.tif raster_map_warped.tif
+
+# 3. Convert to PNG for web
+gdal_translate -of PNG raster_map_warped.tif raster_map_overlay.png
+
+# 4. Optional: generate map tiles
+gdal2tiles.py --zoom=4-13 raster_map_warped.tif tiles/raster_map/`;
+
+  // Leaflet toggle code
+  const lats = gcps.map(g => g.lat), lngs = gcps.map(g => g.lng);
+  const swLat = Math.min(...lats).toFixed(4), swLng = Math.min(...lngs).toFixed(4);
+  const neLat = Math.max(...lats).toFixed(4), neLng = Math.max(...lngs).toFixed(4);
+
+  const cropNote = crop ? `\n// NOTE: also save the cropped image as raster_map_overlay.jpg:\n// python3 -c "from PIL import Image; img=Image.open('raster_map.jpg'); img.crop((${crop.x},${crop.y},${crop.x+crop.w},${crop.y+crop.h})).save('raster_map_overlay.jpg')"\n` : '';
+  exportContent.leaflet = `// ── Add to your map.html ──────────────────────────────────────
+${cropNote}
+// 1. Add to HTML topbar:
+// <button class="ctrl-btn" id="btn-overlay-toggle" onclick="toggleRasterOverlay()">🗺 1937 Map</button>
+
+// 2. Add near the top of your <script> section:
+let rasterOverlay = null;
+const RASTER_BOUNDS = [[${swLat}, ${swLng}], [${neLat}, ${neLng}]];
+
+function toggleRasterOverlay() {
+  const btn = document.getElementById('btn-overlay-toggle');
+  if (rasterOverlay && map.hasLayer(rasterOverlay)) {
+    map.removeLayer(rasterOverlay);
+    if (btn) btn.classList.remove('active');
+  } else {
+    if (!rasterOverlay) {
+      rasterOverlay = L.imageOverlay('raster_map_overlay.${crop ? 'jpg' : 'jpg'}',
+        RASTER_BOUNDS, { opacity: 0.7, interactive: false });
+    }
+    rasterOverlay.addTo(map);
+    if (btn) btn.classList.add('active');
+  }
+}`;
+}
+
+function showTab(tab) {
+  activeTab = tab;
+  document.getElementById('export-pre').textContent = exportContent[tab] || '';
+  document.querySelectorAll('#export-box .export-tabs .tb-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', ['gcps', 'gdal', 'leaflet'][i] === tab);
+  });
+}
+
+function copyExport() {
+  navigator.clipboard.writeText(exportContent[activeTab])
+    .then(() => alert('Copied!'))
+    .catch(() => alert('Copy failed — select the text manually.'));
+}
+
+function closeExport() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+
+// ============================
+//  LOAD GCPs FROM JSON
+// ============================
+document.getElementById('btn-load-gcps').addEventListener('click', () => {
+  document.getElementById('load-error').textContent = '';
+  document.getElementById('load-textarea').value = '';
+  document.getElementById('load-modal').style.display = 'flex';
+});
+
+function applyLoadedGcps() {
+  const raw = document.getElementById('load-textarea').value.trim();
+  const errEl = document.getElementById('load-error');
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) { errEl.textContent = 'Invalid JSON: ' + e.message; return; }
+
+  // Restore crop region
+  if (parsed.crop && parsed.crop.w > 0 && parsed.crop.h > 0) {
+    cropRect = { x: parsed.crop.x, y: parsed.crop.y, w: parsed.crop.w, h: parsed.crop.h };
+  }
+
+  // Clear existing GCPs
+  gcps.length = 0;
+  mapGcpMarkers.forEach(m => lmap.removeLayer(m));
+  mapGcpMarkers.length = 0;
+  pendingImgPt = null;
+
+  if (!Array.isArray(parsed.gcps) || parsed.gcps.length === 0) {
+    errEl.textContent = 'No GCPs found in JSON.'; return;
+  }
+
+  for (const g of parsed.gcps) {
+    if (g.imgX == null || g.imgY == null || g.lat == null || g.lng == null) continue;
+    const i = gcps.length;
+    gcps.push({ imgX: g.imgX, imgY: g.imgY, lat: g.lat, lng: g.lng });
+
+    const color = COLORS[i % COLORS.length];
+    const marker = L.circleMarker([g.lat, g.lng], {
+      radius: 10, color, fillColor: color, fillOpacity: 0.85, weight: 2
+    }).bindTooltip(`${i + 1}`, { permanent: true, className: 'leaflet-tooltip', direction: 'center', offset: [0, 0] })
+      .addTo(lmap);
+    mapGcpMarkers.push(marker);
+  }
+
+  updateTable();
+  drawCanvas();
+
+  if (gcps.length >= 4) {
+    document.getElementById('btn-preview').disabled = false;
+    document.getElementById('gcp-hint').textContent = '— ready for preview!';
+  }
+
+  document.getElementById('load-modal').style.display = 'none';
+  setStatus(`Loaded ${gcps.length} GCPs. Click Preview to warp the overlay.`);
+
+  // Fit map to loaded GCPs
+  const lats = gcps.map(g => g.lat), lngs = gcps.map(g => g.lng);
+  lmap.fitBounds([[Math.min(...lats)-1, Math.min(...lngs)-1],[Math.max(...lats)+1, Math.max(...lngs)+1]]);
+}
+
+// ============================
+//  UTILS
+// ============================
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// Init
+setMode('gcp');
+</script>
+</body>
+</html>

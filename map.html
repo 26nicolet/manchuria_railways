@@ -272,7 +272,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
 }
 #about-btn:hover { background:#333; }
 
-/* ── 1937 Raster Overlay Toggle ── */
+/* ── 1939 Raster Overlay Toggle ── */
 #raster-overlay-btn {
   position:absolute; bottom:56px; right:12px; z-index:999;
   background:#111; color:white; border:1px solid #555; padding:6px 14px;
@@ -419,7 +419,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div id="tp-stops"></div>
 </div>
 
-<button id="raster-overlay-btn" onclick="toggleRasterOverlay()" title="Toggle 1937 map overlay">Show 1937 Map</button>
+<button id="raster-overlay-btn" onclick="toggleRasterOverlay()" title="Toggle 1939 map overlay">Show 1939 Map</button>
 
 <div id="legend">
   <h3>Legend</h3>
@@ -429,7 +429,7 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;background:#111;border-radius:50%;border:1.5px solid #555;text-align:center;line-height:10px;font-size:6px;color:#fff;">&#9654;</span> Active train</div>
   <div class="legend-row"><span style="font-size:1rem">🏨</span> Lodging &amp; activities</div>
   <div class="legend-row"><span style="font-size:1rem">♨️</span> Hot springs</div>
-  <div class="legend-row" id="legend-raster-row" style="display:none"><span style="display:inline-block;width:14px;height:10px;background:linear-gradient(to right,#c8a87c,#d4b896);border:1px solid #888;"></span> 1937 map overlay</div>
+  <div class="legend-row" id="legend-raster-row" style="display:none"><span style="display:inline-block;width:14px;height:10px;background:linear-gradient(to right,#c8a87c,#d4b896);border:1px solid #888;"></span> 1939 map overlay</div>
 </div>
 
 <button id="trip-btn" onclick="toggleTripPanel()">🚂 Trip Planner</button>
@@ -487,6 +487,10 @@ body { font-family: 'Noto Serif JP', 'Georgia', serif; background:#1a1a2e; color
   <div class="about-section">
     <h3>Lodging &amp; Activities</h3>
     <p>Hotel and entertainment data is extracted from advertisements and directories within the same 1940 timetable publication.</p>
+  </div>
+  <div class="about-section">
+    <h3>Historical Map Overlay</h3>
+    <p>The georeferenced raster overlay is derived from: 讀賣新聞社編輯局 (Yomiuri Shimbun Sha), <em>滿洲國全圖 ; 上海・南京附近 中支ノ部其1</em>, 讀賣新聞社 (Yomiuri Shimbun Sha), 1939.</p>
   </div>
   <div class="about-section">
     <h3>License</h3>
@@ -1923,9 +1927,44 @@ function closeAboutPanel() {
   hideBackdrop();
 }
 
-// ===================== 1937 RASTER OVERLAY =====================
+// ===================== 1939 RASTER OVERLAY =====================
 let rasterLayer = null;
 let rasterLoading = false;
+let rasterReady = false; // true once parsed and layer built
+
+// Start fetching + parsing the GeoTIFF immediately in the background.
+// By the time the user notices the map and clicks the button, it will
+// usually already be done.
+async function preloadRaster() {
+  if (rasterLoading || rasterLayer) return;
+  rasterLoading = true;
+  try {
+    // Prefer a pre-cached copy put there by index.html
+    let arrayBuffer;
+    if ('caches' in window) {
+      const cache = await caches.open('manchuria-raster-v1');
+      const cached = await cache.match('raster_map_warped.tif');
+      if (cached) {
+        arrayBuffer = await cached.arrayBuffer();
+      }
+    }
+    if (!arrayBuffer) {
+      const res = await fetch('raster_map_warped.tif');
+      if (!res.ok) return; // file not present yet — silently skip
+      arrayBuffer = await res.arrayBuffer();
+    }
+    const georaster = await parseGeoraster(arrayBuffer);
+    rasterLayer = new GeoRasterLayer({ georaster, opacity: 0.75, resolution: 256 });
+    rasterReady = true;
+    // Update button to signal it's ready (remove any loading indicator)
+    const btn = document.getElementById('raster-overlay-btn');
+    if (btn && btn.textContent.includes('⏳')) btn.textContent = 'Show 1939 Map';
+  } catch(e) {
+    console.warn('Raster preload failed:', e);
+  } finally {
+    rasterLoading = false;
+  }
+}
 
 async function toggleRasterOverlay() {
   const btn = document.getElementById('raster-overlay-btn');
@@ -1935,7 +1974,7 @@ async function toggleRasterOverlay() {
   if (rasterLayer && map.hasLayer(rasterLayer)) {
     map.removeLayer(rasterLayer);
     btn.classList.remove('active');
-    btn.textContent = 'Show 1937 Map';
+    btn.textContent = 'Show 1939 Map';
     legendRow.style.display = 'none';
     return;
   }
@@ -1944,25 +1983,51 @@ async function toggleRasterOverlay() {
   if (rasterLayer) {
     rasterLayer.addTo(map);
     btn.classList.add('active');
-    btn.textContent = 'Hide 1937 Map';
+    btn.textContent = 'Hide 1939 Map';
     legendRow.style.display = '';
     return;
   }
 
-  // First load — fetch the GeoTIFF exported from QGIS
+  // First load — fetch & parse the GeoTIFF (may already be done if preload finished)
+  if (rasterLoading) {
+    // Still preloading — show spinner and wait for it to finish
+    btn.textContent = '⏳ Loading…';
+    btn.disabled = true;
+    const wait = () => new Promise(r => setTimeout(r, 150));
+    while (rasterLoading) await wait();
+    btn.disabled = false;
+    if (rasterLayer) {
+      rasterLayer.addTo(map);
+      btn.classList.add('active');
+      btn.textContent = 'Hide 1939 Map';
+      legendRow.style.display = '';
+    } else {
+      btn.textContent = 'Show 1939 Map';
+    }
+    return;
+  }
+
   if (rasterLoading) return;
   rasterLoading = true;
   btn.textContent = '⏳ Loading…';
   btn.disabled = true;
 
   try {
-    const res = await fetch('raster_map_warped.tif');
-    if (!res.ok) throw new Error(`File not found (${res.status}). Export raster_map_warped.tif from QGIS first.`);
-    const arrayBuffer = await res.arrayBuffer();
+    let arrayBuffer;
+    if ('caches' in window) {
+      const cache = await caches.open('manchuria-raster-v1');
+      const cached = await cache.match('raster_map_warped.tif');
+      if (cached) arrayBuffer = await cached.arrayBuffer();
+    }
+    if (!arrayBuffer) {
+      const res = await fetch('raster_map_warped.tif');
+      if (!res.ok) throw new Error(`File not found (${res.status}). Export raster_map_warped.tif from QGIS first.`);
+      arrayBuffer = await res.arrayBuffer();
+    }
     const georaster = await parseGeoraster(arrayBuffer);
     rasterLayer = new GeoRasterLayer({
       georaster,
-      opacity: 0.65,
+      opacity: 0.75,
       resolution: 256,
     });
     rasterLayer.addTo(map);
@@ -1972,7 +2037,7 @@ async function toggleRasterOverlay() {
     alert('Could not load raster_map_warped.tif:\n' + e.message);
     console.error(e);
   } finally {
-    btn.textContent = rasterLayer && map.hasLayer(rasterLayer) ? 'Hide 1937 Map' : 'Show 1937 Map';
+    btn.textContent = rasterLayer && map.hasLayer(rasterLayer) ? 'Hide 1939 Map' : 'Show 1939 Map';
     btn.disabled = false;
     rasterLoading = false;
   }
@@ -2016,6 +2081,7 @@ const _openLodgingPanel = openLodgingPanel;
 openLodgingPanel = function(s) { _openLodgingPanel(s); checkShowBackdrop(); };
 
 init();
+preloadRaster();
 </script>
 </body>
 </html>

@@ -99,8 +99,77 @@
   <video id="main-video" src="Generate_Moving_Train_GIF_From_Screenshot.mp4" autoplay muted playsinline></video>
   <!-- <img id="overlay-image" src="Naval_Ensign_of_Japan.svg" alt=""> -->
   <div id="overlay-text">滿洲汽車時間表</div>
-  <button id="enter-btn">Enter the Map</button>
+  <button id="enter-btn">Explore This Project</button>
   <div id="fade-overlay"></div>
+
+  <!-- About This Project popup -->
+  <div id="about-popup">
+    <div id="about-popup-inner">
+      <h2>About This Project</h2>
+      <p>This digital history project visualizes the passenger trains that would have been running through Manchuria in the month of August, 1940. Compiled by the Manchuria Branch of the Japan Tourist Bureau and updated monthly, the timetable covers all passenger trainlines operated by the South Manchuria Railway through Manchuria and China (See <em>About the Data</em> for more specifics). Train times in Manchuria and China are displayed using a 24-hour time system, whereas routes through Japan, Korea, and Taiwan are divided into 12-hour morning and night splits. How might different imperial authorities organize these continuously shifting diasporas? Established in 1906 after the conclusion of the Russo-Japanese war, the South Manchuria Railway company (SMR) offered one distinct example. The SMR was designated by government order to oversee marine transportation, the electric grid, Railway Zone management, and management of land and buildings, effectively making it a comprehensive administrative body. Japan's presence in Manchuria has been described as a structure of "railroad imperialism," characterized by a focus on economic ventures, joint public-private ventures, and large-scale transformation of the physical landscape, distinguished Manchuria from Japan's previous colonial projects in Okinawa and outlying islands.</p>
+      <p>The Japanese Tourist Bureau, established in 1912, was tasked with disseminating promotional materials for a curated tourist experience. This map inherits and intentionally amplifies the biases inherent to the logbooks. Existing Anglophone literature on tourism through Manchuria in the 1930s often excluded sociopolitical commentary. Travelers limited their discussion of wartime impact on China, instead focusing on conventional tourist activities such as shopping and sightseeing. I'm interested in applying this idea to create a tourist navigation interface from the perspective of the Japanese Tourist Bureau. How was it possible to move at ease through a warzone? What does it mean to have the luxury of leisure in a battered landscape, to enjoy a medium-rare steak at Wangfu Grill or a cup of Earl Grey tea in the dining car while admiring the aesthetics of a contested land?</p>
+      <button id="about-popup-enter">Enter the Map &rarr;</button>
+    </div>
+  </div>
+
+  <style>
+    #about-popup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0,0,0,0.45);
+      align-items: center;
+      justify-content: center;
+    }
+    #about-popup.visible {
+      display: flex;
+    }
+    #about-popup-inner {
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      color: #111;
+      font-family: 'Georgia', serif;
+      border: 2.5px solid #111;
+      border-radius: 14px;
+      padding: 36px 40px 28px;
+      max-width: 680px;
+      width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+    }
+    #about-popup-inner h2 {
+      font-family: 'Noto Serif JP', 'Georgia', serif;
+      font-size: 1.25rem;
+      margin: 0 0 16px;
+      letter-spacing: 0.04em;
+      color: #111;
+    }
+    #about-popup-inner p {
+      font-size: 0.87rem;
+      line-height: 1.75;
+      margin: 0 0 14px;
+      color: #111;
+    }
+    #about-popup-enter {
+      display: block;
+      margin: 18px auto 0;
+      background: #111;
+      color: #fff;
+      font-family: 'Georgia', serif;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 28px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    #about-popup-enter:hover {
+      background: #333;
+    }
+  </style>
   <script>
     const video = document.getElementById('main-video');
     const overlay = document.getElementById('overlay-text');
@@ -114,6 +183,17 @@
     });
 
     btn.addEventListener('click', () => {
+      // Start downloading the GeoTIFF into Cache API while the user reads the popup.
+      // map.html will pull from this cache instead of re-downloading.
+      if ('caches' in window) {
+        caches.open('manchuria-raster-v1')
+          .then(cache => cache.add('raster_map_warped.tif'))
+          .catch(() => {}); // silently ignore if file absent or cache unavailable
+      }
+      document.getElementById('about-popup').classList.add('visible');
+    });
+
+    document.getElementById('about-popup-enter').addEventListener('click', () => {
       fadeOverlay.classList.add('active');
       setTimeout(() => { window.location.href = 'map.html'; }, 1000);
     });
