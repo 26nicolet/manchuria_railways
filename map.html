@@ -832,6 +832,10 @@ async function init() {
     maxZoom: 16,
   }).addTo(map);
 
+  L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16,
+  }).addTo(map);
+
   const [routeData, stationData, railwayData, harbinVladData] = await Promise.all([
     fetch('results/route_data.json').then(r => r.json()),
     fetch('results/all_stations.json').then(r => r.json()),
